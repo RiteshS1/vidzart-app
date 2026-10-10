@@ -16,6 +16,21 @@ coordinate mapping, encoding, browser/extension quirks). Newest entries at the t
 
 ## Log
 
+### 2026-10-11: Console errors that weren't ours (browser extensions)
+- **Symptom:** in my everyday Chrome the page logged a hydration mismatch
+  (`cz-shortcut-listen="true"` on `<body>`) plus two `Uncaught Object` exceptions, even on the
+  static build.
+- **Cause:** browser extensions. ColorZilla adds that attribute before React hydrates, and other
+  extensions' content scripts throw in their own isolated JS world, so Chrome attributes the
+  error to the page. Evidence: a bare HTML page had no errors; an `error`/`unhandledrejection`
+  listener injected first in `<head>` caught nothing; a clean Chrome profile (DevTools protocol,
+  no extensions) showed zero errors on both dev and build.
+- **Fix:** `suppressHydrationWarning` on `<body>` (real users have these extensions too). The
+  exceptions need no fix.
+- **What I learned:** before debugging a console error, rule out the environment: reproduce
+  in a clean profile or an incognito window with extensions disabled.
+- **Links:** https://react.dev/link/hydration-mismatch
+
 ### 2026-10-11: Next.js 16.4 scaffold defaults vs. a static app
 - **Symptom:** `create-next-app@16.4.0` turned on `cacheComponents` and `partialPrefetching`,
   installed TypeScript 5.9 even though 7.0 is the latest, and a fresh `tsc --noEmit` failed with

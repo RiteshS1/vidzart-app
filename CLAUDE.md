@@ -135,7 +135,8 @@ never modified. Edits live in `project.json`, and the final video is rendered fr
 ```
 my-demo.vidz  (zip)
 ├── manifest.json     required. Read this first.
-├── video.webm        required. The raw recording (or video.mp4 for imported files)
+├── video.webm        required. The raw recording: video.webm or video.mp4, whatever
+│                     the recorder or the imported file produced
 ├── events.json       optional. Cursor/click log; missing for plain imported videos
 ├── project.json      required. Edit settings + segments
 └── assets/           optional. e.g. a custom background image
@@ -245,7 +246,7 @@ changes CSS px too, which is why `resize` events carry `devicePixelRatio`.
 interface VidzProject {
   version: 1;
   source: {
-    duration: number;        // ms
+    duration: number;        // ms, measured by the writer (see note below)
     width: number;           // decoded video px
     height: number;
     fps: number;             // nominal; recordings are often variable frame rate
@@ -285,6 +286,10 @@ type Segment =
 - Positions and sizes are **normalized** (0–1 of the source frame, or a fraction of the output's
   shorter side), so a project renders the same at 720p and 4K.
 - `id` is a random unique string (e.g. `crypto.randomUUID()`).
+- `source.duration` must be **measured**, not read from the file header: WebM files written by
+  `MediaRecorder` have no duration in their header (a `<video>` reports `Infinity`). The
+  recorder uses its own start/stop times; the editor falls back to demuxing (Mediabunny) to
+  find the last frame's timestamp.
 - **Output time ≠ source time.** Trims remove time and speed segments stretch it. The editor
   keeps one mapping function `sourceToOutput(t)` / `outputToSource(t)` and everything (timeline,
   preview, export) goes through it.
@@ -294,7 +299,7 @@ type Segment =
 
 ```sh
 pnpm install      # install deps
-pnpm dev          # dev server on http://localhost:3000
+pnpm dev          # dev server on http://localhost:3000 (the extension's dev server uses 3010)
 pnpm build        # static export → out/
 pnpm lint         # ESLint (next core-web-vitals + typescript rules)
 pnpm typecheck    # next typegen && tsc --noEmit
@@ -302,6 +307,9 @@ pnpm typecheck    # next typegen && tsc --noEmit
 
 - `typecheck` runs `next typegen` first: globals like `LayoutProps` / `PageProps` live in
   generated files under `.next/types`, which don't exist on a fresh clone.
+- Hydration warnings that mention attributes you didn't write (e.g. `cz-shortcut-listen`) come
+  from browser extensions. `<body>` has `suppressHydrationWarning` for that reason. To check
+  whether an error is really ours, load the page in a clean profile (no extensions).
 - There is no `pnpm start`; `next start` doesn't work with static export. To preview a build,
   serve `out/` with any static server (e.g. `pnpm dlx serve out`).
 
