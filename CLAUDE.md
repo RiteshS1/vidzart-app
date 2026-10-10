@@ -67,7 +67,9 @@ src/
                              SettingsPanel, DropZone, EditorContext, useEditorShortcuts
   lib/
     project/               ✓ types (mirror of the spec), defaults, segment helpers
-                             (planned: zip read/write, validation, migrations)
+    vidz/                  ✓ zip.ts (dependency-free zip, zero-copy video slices),
+                             vidzFile.ts (read/write .vidz, validation, migration hook)
+    events/                ✓ events.json types, cursor track (normalize, resample, smooth)
     timeline/              ✓ timeMap: sourceToOutput / outputToSource (trims + speed)
     render/                ✓ layout math, renderFrame, background presets
     playback/              ✓ PlaybackController: <video> + skip cuts + speed
@@ -75,7 +77,8 @@ src/
     media/                 ✓ probe (Mediabunny), probeWithElement (fallback)
     recording/             ✓ screenRecorder, mimeType
     time/                  ✓ clock (epochNow), formatTime
-    effects/                 zoom easing, cursor smoothing, click effects
+    effects/               ✓ easing, camera (zoom crop), autoZoom (zooms from clicks)
+                             (planned: cursor rendering, click effects)
     storage/                 OPFS + IndexedDB helpers
     ai/                      on-device (Whisper) + BYOK provider clients
   types/                   ✓ DOM type extensions (screen-capture.d.ts)
@@ -351,17 +354,17 @@ pnpm test:e2e     # Playwright end-to-end tests in installed Chrome (starts its 
 - [x] **Phase 0:** Web recorder spike (`getDisplayMedia` + `MediaRecorder` + download).
 - [x] **Phase 1:** Editor core: load video, canvas preview with background/padding/rounded
       corners, playback controls, trim, timeline.
-- [ ] **Phase 2:** Zoom segments: manual zooms with easing, then auto zooms from `events.json`.
+- [x] **Phase 2:** Zoom segments: manual zooms with easing, then auto zooms from `events.json`.
 - [ ] **Phase 3:** MP4 export in a Web Worker with WebCodecs.
-- [ ] **Phase 4:** Open `.vidz` files produced by the extension.
+- [x] **Phase 4 (app side):** Open/save `.vidz` files (done early, needed for auto zooms).
 - [ ] **Phase 5:** Cursor smoothing and click effects from the event log.
 - [ ] **Phase 6:** AI: in-browser captions, silence/filler removal, then BYOK features.
 - [ ] **Later:** direct handoff from the extension, "Buy me a coffee" link.
 
 **Not planned:** accounts/auth, cloud storage, share links, payments, Vidzart-hosted AI.
 
-**Current phase:** Phase 1 done (`/editor`: open a video, composed canvas preview, playback, trims,
-timeline, undo/redo). Next: Phase 2 (zoom segments).
+**Current phase:** Phase 2 done: manual zooms (timeline lane, inspector, eased camera), `.vidz`
+open/save, auto zooms from clicks, cursor-follow zooms. Next: Phase 3 (MP4 export in a worker).
 
 **Deferred from Phase 1** (pick up when needed): filmstrip thumbnails on the timeline (worker),
 saving projects locally (OPFS + IndexedDB) so a reload doesn't lose edits, custom image

@@ -16,6 +16,47 @@ coordinate mapping, encoding, browser/extension quirks). Newest entries at the t
 
 ## Log
 
+### 2026-10-12: Zoom as a camera crop
+- A zoom crops the *source* (`drawImage` with a source rectangle) and stretches the crop over the
+  same rounded frame; background and padding don't move. Visible size = 1/scale of the frame.
+- The crop's center is clamped to `[half, 1 − half]` so it never shows past the frame's edges. A
+  nice side effect: at scale ≈ 1 any target clamps to the middle, so zooming in from 1 naturally
+  "travels" toward the target as the scale grows.
+- Ease-in-out cubic for in/out. Segments shorter than easeIn + easeOut shrink both
+  proportionally instead of jumping.
+
+### 2026-10-12: A zip writer/reader in ~200 lines
+- Zip = local headers + data, then a central directory pointing back at them, then an
+  end-of-central-directory record found by scanning back from the end of the file.
+- Video entries are STORED (uncompressed), so reading one is `file.slice(start, end)`, a
+  zero-copy view instead of loading a multi-GB file into memory. JSON is DEFLATEd with the
+  browser's built-in `CompressionStream("deflate-raw")`, which is exactly zip's format.
+- CRC-32 is computed by streaming the Blob in chunks. Verified against `unzip -t`.
+- TypeScript 5.9 gotcha: `new Blob([...])` rejects `Uint8Array<ArrayBufferLike>` (it could be a
+  SharedArrayBuffer view); declare arrays as `Uint8Array<ArrayBuffer>[]`.
+
+### 2026-10-12: Smoothing the cursor without lag
+- Raw pointer events are irregular (bursts while moving, nothing at rest), so resample to a fixed
+  60/s grid first, then smooth with a **centered** moving average (prefix sums, O(n)).
+- A live app can only average the past, which lags. An editor knows the future, so averaging
+  both sides is smooth *and* on time.
+- Bug caught by a test: resampling with `floor((t1−t0)/step)+1` samples stopped up to one step
+  before the last event, so the cursor never reached its final position. Use `ceil` and clamp.
+
+### 2026-10-12: Auto zooms from clicks
+- Group clicks close in time (≤ 2.5s) **and** space (≤ 35% of the frame); zoom in 0.8s before
+  the first click so the ease-in has finished when the click happens, and hold 1.8s after.
+- Cap the scale so all clicks in a group stay visible: visible size ≥ spread + margin, so
+  scale ≤ 1 / (spread + margin).
+- Regenerating replaces earlier *auto* zooms but never touches manual ones; they're added with
+  `addZoom`, which only fills free gaps.
+
+### 2026-10-12: Lint vs. one-shot handoffs in effects
+- The React hooks lint flags calling `open()` (which sets state) inside an effect. The usual
+  fix, deferring with `setTimeout`, would **lose** the recording in StrictMode dev: run 1 takes
+  the one-shot handoff and schedules, the cleanup cancels the timer, and run 2 finds nothing.
+  Kept the direct call with a documented `eslint-disable-next-line`.
+
 ### 2026-10-12: Editor state outside React (and the selector trap)
 - **Problem:** the preview redraws up to 60×/s and needs the latest project, but React state
   would re-render the whole editor on every change and is awkward to read from a rAF loop.
