@@ -52,23 +52,42 @@ for the **exact installed version** ship in `node_modules/next/dist/docs/` (see 
 
 ## Structure
 
-Scaffolded so far: `src/app/` (root layout + placeholder landing page). Target layout:
+What exists now (✓) and what's planned:
 
 ```
 src/
   app/
-    (marketing)/page.tsx   landing page
-    dashboard/             list of local projects (from IndexedDB)
-    editor/                client-only editor (see below)
+    page.tsx               ✓ placeholder landing page
+    record/                ✓ Phase 0 recorder (getDisplayMedia + MediaRecorder)
+    editor/                ✓ client-only editor shell (EditorLoader → dynamic import, ssr:false)
+    dashboard/               list of local projects (from IndexedDB)
+  components/
+    recorder/              ✓ Recorder UI
+    editor/                ✓ Editor, Workspace, PreviewCanvas, Transport, Timeline,
+                             SettingsPanel, DropZone, EditorContext, useEditorShortcuts
   lib/
-    project/               .vidz types, zip read/write, validation, migrations
-    timeline/              sourceToOutput / outputToSource time mapping (trims, speed)
-    render/                renderFrame(t, project, ctx): pure, shared by preview AND export
-    effects/               zoom easing, cursor smoothing, click effects
-    storage/               OPFS + IndexedDB helpers
-    ai/                    on-device (Whisper) + BYOK provider clients
-  workers/                 decode, thumbnails, export, whisper
+    project/               ✓ types (mirror of the spec), defaults, segment helpers
+                             (planned: zip read/write, validation, migrations)
+    timeline/              ✓ timeMap: sourceToOutput / outputToSource (trims + speed)
+    render/                ✓ layout math, renderFrame, background presets
+    playback/              ✓ PlaybackController: <video> + skip cuts + speed
+    editor/                ✓ EditorStore (undo/redo), actions, recorder→editor handoff
+    media/                 ✓ probe (Mediabunny), probeWithElement (fallback)
+    recording/             ✓ screenRecorder, mimeType
+    time/                  ✓ clock (epochNow), formatTime
+    effects/                 zoom easing, cursor smoothing, click effects
+    storage/                 OPFS + IndexedDB helpers
+    ai/                      on-device (Whisper) + BYOK provider clients
+  types/                   ✓ DOM type extensions (screen-capture.d.ts)
+  workers/                   decode, thumbnails, export, whisper
 ```
+
+**State model.** `EditorStore` (`lib/editor/store.ts`) holds the project + UI selection, with
+undo/redo. The preview loop reads `store.getState()` directly; components subscribe to slices via
+`useEditor(selector)` (`useSyncExternalStore`). Selectors must return existing values, never
+freshly built objects. Edits go through `store.edit(recipe)` and never mutate (old versions are
+the undo history). Playback time lives only in the `<video>` element, read via
+`PlaybackController.getOutputTime()` / `getSourceTime()`.
 
 ### Key design decisions
 
@@ -304,6 +323,7 @@ pnpm dev          # dev server on http://localhost:3000 (the extension's dev ser
 pnpm build        # static export → out/
 pnpm lint         # ESLint (next core-web-vitals + typescript rules)
 pnpm typecheck    # next typegen && tsc --noEmit
+pnpm test         # Vitest unit tests for pure logic (src/**/*.test.ts)
 pnpm test:e2e     # Playwright end-to-end tests in installed Chrome (starts its own dev server on :3100)
 ```
 
@@ -329,7 +349,7 @@ pnpm test:e2e     # Playwright end-to-end tests in installed Chrome (starts its 
 ## Roadmap (this repo)
 
 - [x] **Phase 0:** Web recorder spike (`getDisplayMedia` + `MediaRecorder` + download).
-- [ ] **Phase 1:** Editor core: load video, canvas preview with background/padding/rounded
+- [x] **Phase 1:** Editor core: load video, canvas preview with background/padding/rounded
       corners, playback controls, trim, timeline.
 - [ ] **Phase 2:** Zoom segments: manual zooms with easing, then auto zooms from `events.json`.
 - [ ] **Phase 3:** MP4 export in a Web Worker with WebCodecs.
@@ -340,4 +360,9 @@ pnpm test:e2e     # Playwright end-to-end tests in installed Chrome (starts its 
 
 **Not planned:** accounts/auth, cloud storage, share links, payments, Vidzart-hosted AI.
 
-**Current phase:** Phase 0 done (`/record`: getDisplayMedia + MediaRecorder + download). Next: Phase 1.
+**Current phase:** Phase 1 done (`/editor`: open a video, composed canvas preview, playback, trims,
+timeline, undo/redo). Next: Phase 2 (zoom segments).
+
+**Deferred from Phase 1** (pick up when needed): filmstrip thumbnails on the timeline (worker),
+saving projects locally (OPFS + IndexedDB) so a reload doesn't lose edits, custom image
+backgrounds.

@@ -16,6 +16,44 @@ coordinate mapping, encoding, browser/extension quirks). Newest entries at the t
 
 ## Log
 
+### 2026-10-12: Editor state outside React (and the selector trap)
+- **Problem:** the preview redraws up to 60×/s and needs the latest project, but React state
+  would re-render the whole editor on every change and is awkward to read from a rAF loop.
+- **Approach:** a tiny `EditorStore` with `getState()` + `subscribe()`. The loop reads
+  `getState()`; components use `useSyncExternalStore` through `useEditor(selector)`.
+- **Trap:** `useSyncExternalStore` compares snapshots with `Object.is`. A selector like
+  `s => ({ a: s.x, b: s.y })` returns a new object every call, which React reads as "changed
+  forever" and loops. Select existing values (`s => s.project.settings`) and derive with
+  `useMemo`.
+- **What I learned:** keep per-frame data out of React entirely; use React only for the shape
+  of the UI.
+
+### 2026-10-12: Previewing cuts with a plain `<video>`
+- **Problem:** the `<video>` only knows the source timeline, but the preview must skip trimmed
+  ranges and stop at a trimmed end.
+- **Approach:** `PlaybackController.tick()` runs once per animation frame: inside a cut, jump to
+  the next kept moment; past the last kept moment, pause; in a speed segment, set
+  `playbackRate`. All decisions come from `timeMap.ts` (unit tested).
+- **Limit:** up to one frame (~16ms) of a cut can show before the jump, plus seek latency.
+  Fine for preview; the export decodes exact frames instead.
+- **What I learned:** seeking a media element is async. `seeked` fires when the new frame is
+  ready, which is the right moment to redraw a paused preview.
+
+### 2026-10-12: Canvas shadows and rounded corners
+- Canvas draws a shadow only *with* a shape, so we fill the rounded rect in black with
+  `shadowBlur` set, then draw the video on top; only the shadow around it remains visible.
+- Rounded video = `roundRect` + `clip()` then `drawImage`. `save()`/`restore()` around each step
+  so shadow and clip settings don't leak into the next drawing.
+- Sizes are fractions of the canvas's shorter side, so a 600px preview and a 4K export look the
+  same. The canvas backing store is `cssSize × devicePixelRatio` to stay sharp on retina.
+
+### 2026-10-12: Test races with toggling buttons
+- **Symptom:** "playback stops at the end" passed instantly at 0:00.
+- **Cause:** right after clicking Play, the Play button is still visible for a moment, so
+  "wait until Play is visible" was already true.
+- **Fix:** first wait for Pause (playback really started), then for Play (it stopped).
+- **What I learned:** when waiting for a state, first confirm you left the previous one.
+
 ### 2026-10-12: Testing screen recording without a human
 - **Symptom:** in Playwright, `getDisplayMedia()` never resolved (the picker waits for a click
   nobody makes). `--auto-select-tab-capture-source-by-title` picked a tab but failed with
