@@ -5,7 +5,7 @@ tutorials. Record your screen and the editor adds smooth zooms that follow your 
 background, a smoothed cursor and click effects. Then you export a clean MP4.
 
 This repo holds the **web app**: landing page, local dashboard and editor. The recorder that also
-captures cursor and click events is in the companion repo **vidzart-extension**.
+captures cursor and click events is in the companion repo **[vidzart-extension](https://github.com/RiteshS1/vidzart-extension)**.
 
 > **Status:** pre-alpha. Next.js is scaffolded; the recorder and editor are not built yet.
 
