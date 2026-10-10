@@ -16,6 +16,28 @@ coordinate mapping, encoding, browser/extension quirks). Newest entries at the t
 
 ## Log
 
+### 2026-10-12: Export pipeline with WebCodecs + Mediabunny
+- Per output frame: output time → `outputToSource` → decoded frame → **the same `renderFrame`**
+  as the preview on an `OffscreenCanvas` → `CanvasSource.add(t, 1/fps)` → H.264 in MP4.
+  `samplesAtTimestamps` takes sorted timestamps and decodes each packet at most once.
+- **Close every `VideoFrame`/sample right after use.** They hold decoder/GPU memory, and the
+  decoder stalls when too many are open.
+- **Feed video and audio concurrently** (`Promise.all`). The muxer interleaves tracks, so
+  pushing all video first can block on backpressure waiting for audio.
+- Audio chunks straddle cut points: `sample.trim(fromFrame, toFrame)` keeps the frames inside
+  the kept piece, and `setTimestamp` moves them onto the output timeline.
+- Verified independently: the e2e test reads the exported MP4 with Mediabunny in Node (codec,
+  size, fps, duration) instead of trusting the UI.
+
+### 2026-10-12: Web Workers in a Next.js static export
+- `new Worker(new URL("../../workers/export.worker.ts", import.meta.url), { type: "module" })`
+  works with Turbopack in dev and prod. In prod it's rewritten to a `turbopack-worker-*.js`
+  bootstrap that loads compiled chunks.
+- Scary-looking but harmless: `out/_next/static/media/export.worker.*.ts` (raw source) is also
+  emitted, and hosts serve `.ts` as `video/mp2t`. It's unused. I proved it by running the e2e
+  suite against `out/` served with host-like MIME types (`pnpm test:e2e:prod`).
+- Lesson: dev mode and the production build can differ, so test the artifact you ship.
+
 ### 2026-10-12: Zoom as a camera crop
 - A zoom crops the *source* (`drawImage` with a source rectangle) and stretches the crop over the
   same rounded frame; background and padding don't move. Visible size = 1/scale of the frame.

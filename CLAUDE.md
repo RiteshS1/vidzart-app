@@ -79,10 +79,12 @@ src/
     time/                  ✓ clock (epochNow), formatTime
     effects/               ✓ easing, camera (zoom crop), autoZoom (zooms from clicks)
                              (planned: cursor rendering, click effects)
+    export/                ✓ exportVideo (decode → renderFrame → encode → MP4), worker
+                             protocol + client (progress, cancel)
     storage/                 OPFS + IndexedDB helpers
     ai/                      on-device (Whisper) + BYOK provider clients
   types/                   ✓ DOM type extensions (screen-capture.d.ts)
-  workers/                   decode, thumbnails, export, whisper
+  workers/                 ✓ export.worker.ts (planned: thumbnails, whisper)
 ```
 
 **State model.** `EditorStore` (`lib/editor/store.ts`) holds the project + UI selection, with
@@ -328,6 +330,7 @@ pnpm lint         # ESLint (next core-web-vitals + typescript rules)
 pnpm typecheck    # next typegen && tsc --noEmit
 pnpm test         # Vitest unit tests for pure logic (src/**/*.test.ts)
 pnpm test:e2e     # Playwright end-to-end tests in installed Chrome (starts its own dev server on :3100)
+pnpm test:e2e:prod  # same tests against the production static export (built, served on :3200)
 ```
 
 - `typecheck` runs `next typegen` first: globals like `LayoutProps` / `PageProps` live in
@@ -355,7 +358,7 @@ pnpm test:e2e     # Playwright end-to-end tests in installed Chrome (starts its 
 - [x] **Phase 1:** Editor core: load video, canvas preview with background/padding/rounded
       corners, playback controls, trim, timeline.
 - [x] **Phase 2:** Zoom segments: manual zooms with easing, then auto zooms from `events.json`.
-- [ ] **Phase 3:** MP4 export in a Web Worker with WebCodecs.
+- [x] **Phase 3:** MP4 export in a Web Worker with WebCodecs.
 - [x] **Phase 4 (app side):** Open/save `.vidz` files (done early, needed for auto zooms).
 - [ ] **Phase 5:** Cursor smoothing and click effects from the event log.
 - [ ] **Phase 6:** AI: in-browser captions, silence/filler removal, then BYOK features.
@@ -363,8 +366,12 @@ pnpm test:e2e     # Playwright end-to-end tests in installed Chrome (starts its 
 
 **Not planned:** accounts/auth, cloud storage, share links, payments, Vidzart-hosted AI.
 
-**Current phase:** Phase 2 done: manual zooms (timeline lane, inspector, eased camera), `.vidz`
-open/save, auto zooms from clicks, cursor-follow zooms. Next: Phase 3 (MP4 export in a worker).
+**Current phase:** Phase 3 done: Export MP4 dialog (720p–4K, 30/60 fps) rendering in a Web Worker
+with WebCodecs + Mediabunny, audio for kept pieces, progress + cancel. Verified on the production
+build. Next: Phase 4 (extension: record tab + events → .vidz).
+
+**Known export limits:** audio in speed-changed pieces is silent (no time-stretching yet; the UI
+can't create speed segments yet anyway); projects over 4 GB can't be saved as .vidz (no Zip64).
 
 **Deferred from Phase 1** (pick up when needed): filmstrip thumbnails on the timeline (worker),
 saving projects locally (OPFS + IndexedDB) so a reload doesn't lose edits, custom image
