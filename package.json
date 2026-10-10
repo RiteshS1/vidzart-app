@@ -8,7 +8,8 @@
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
     "test:e2e": "playwright test",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e:prod": "E2E_PROD=1 playwright test"
   },
   "dependencies": {
     "mediabunny": "1.60.0",
