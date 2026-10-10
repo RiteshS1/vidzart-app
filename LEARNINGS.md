@@ -16,6 +16,36 @@ coordinate mapping, encoding, browser/extension quirks). Newest entries at the t
 
 ## Log
 
+### 2026-10-12: Testing screen recording without a human
+- **Symptom:** in Playwright, `getDisplayMedia()` never resolved (the picker waits for a click
+  nobody makes). `--auto-select-tab-capture-source-by-title` picked a tab but failed with
+  `NotReadableError: Could not start video source`, both headless and headed.
+- **Cause:** the picker is deliberately human-only (a page must not record you silently). Real
+  tab capture under automation didn't start a video source on this machine.
+- **Fix:** `--use-fake-ui-for-media-stream --use-fake-device-for-media-stream` gives a synthetic
+  1280×720 "screen" stream. The "user cancelled" path is tested by making `getDisplayMedia`
+  reject with a `NotAllowedError` DOMException, exactly what Chrome does on Cancel.
+- **What I learned:** test media code with the browser's fake devices; test failure paths by
+  reproducing the exact error the browser throws.
+
+### 2026-10-12: "MediaRecorder WebM has no duration" is version-dependent
+- **Symptom:** a test asserting `video.duration === Infinity` for a fresh recording failed:
+  Chrome 154 reported `2.101`.
+- **Cause:** newer Chrome writes the duration into the WebM it produces; older versions, other
+  browsers, and recordings interrupted by a crash don't.
+- **Fix:** removed the assertion and softened the spec wording. We still **measure** duration
+  from the recorder's `start`/`stop` events instead of trusting the file.
+- **What I learned:** don't encode folklore about browser behavior in tests; assert on our
+  own guarantees instead.
+
+### 2026-10-12: TypeScript's DOM types lag the platform
+- **Symptom:** `selfBrowserSurface does not exist in type DisplayMediaStreamOptions`.
+- **Cause:** `lib.dom.d.ts` only has `audio`/`video` for that type; Chrome supports more.
+- **Fix:** `src/types/screen-capture.d.ts` uses declaration merging (`declare global { interface
+  DisplayMediaStreamOptions { … } }`) to add the options, with links to the spec.
+- **What I learned:** interfaces with the same name merge, so you can extend built-in DOM
+  types without casting to `any`.
+
 ### 2026-10-11: Console errors that weren't ours (browser extensions)
 - **Symptom:** in my everyday Chrome the page logged a hydration mismatch
   (`cz-shortcut-listen="true"` on `<body>`) plus two `Uncaught Object` exceptions, even on the

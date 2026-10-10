@@ -286,10 +286,11 @@ type Segment =
 - Positions and sizes are **normalized** (0–1 of the source frame, or a fraction of the output's
   shorter side), so a project renders the same at 720p and 4K.
 - `id` is a random unique string (e.g. `crypto.randomUUID()`).
-- `source.duration` must be **measured**, not read from the file header: WebM files written by
-  `MediaRecorder` have no duration in their header (a `<video>` reports `Infinity`). The
-  recorder uses its own start/stop times; the editor falls back to demuxing (Mediabunny) to
-  find the last frame's timestamp.
+- `source.duration` must be **measured**, not trusted from the file header: WebM files written by
+  `MediaRecorder` may have no duration (older Chrome, other browsers, or a recording cut short
+  by a crash; a `<video>` then reports `Infinity`). Chrome 154 does write it, but we don't rely
+  on that. The recorder uses its own start/stop times; the editor falls back to demuxing
+  (Mediabunny) to find the last frame's timestamp.
 - **Output time ≠ source time.** Trims remove time and speed segments stretch it. The editor
   keeps one mapping function `sourceToOutput(t)` / `outputToSource(t)` and everything (timeline,
   preview, export) goes through it.
@@ -303,6 +304,7 @@ pnpm dev          # dev server on http://localhost:3000 (the extension's dev ser
 pnpm build        # static export → out/
 pnpm lint         # ESLint (next core-web-vitals + typescript rules)
 pnpm typecheck    # next typegen && tsc --noEmit
+pnpm test:e2e     # Playwright end-to-end tests in installed Chrome (starts its own dev server on :3100)
 ```
 
 - `typecheck` runs `next typegen` first: globals like `LayoutProps` / `PageProps` live in
@@ -310,6 +312,11 @@ pnpm typecheck    # next typegen && tsc --noEmit
 - Hydration warnings that mention attributes you didn't write (e.g. `cz-shortcut-listen`) come
   from browser extensions. `<body>` has `suppressHydrationWarning` for that reason. To check
   whether an error is really ours, load the page in a clean profile (no extensions).
+- E2E tests can't click Chrome's screen-share picker. They launch Chrome with
+  `--use-fake-ui-for-media-stream --use-fake-device-for-media-stream`, which auto-accepts and
+  captures a synthetic 1280×720 "screen". See `e2e/record.spec.ts`.
+- Newer `getDisplayMedia` options (`selfBrowserSurface`, `surfaceSwitching`, …) aren't in
+  TypeScript's DOM types yet; `src/types/screen-capture.d.ts` adds them.
 - There is no `pnpm start`; `next start` doesn't work with static export. To preview a build,
   serve `out/` with any static server (e.g. `pnpm dlx serve out`).
 
@@ -321,7 +328,7 @@ pnpm typecheck    # next typegen && tsc --noEmit
 
 ## Roadmap (this repo)
 
-- [ ] **Phase 0:** Web recorder spike (`getDisplayMedia` + `MediaRecorder` + download).
+- [x] **Phase 0:** Web recorder spike (`getDisplayMedia` + `MediaRecorder` + download).
 - [ ] **Phase 1:** Editor core: load video, canvas preview with background/padding/rounded
       corners, playback controls, trim, timeline.
 - [ ] **Phase 2:** Zoom segments: manual zooms with easing, then auto zooms from `events.json`.
@@ -333,4 +340,4 @@ pnpm typecheck    # next typegen && tsc --noEmit
 
 **Not planned:** accounts/auth, cloud storage, share links, payments, Vidzart-hosted AI.
 
-**Current phase:** Next.js scaffolded (placeholder landing page). Next step: Phase 0.
+**Current phase:** Phase 0 done (`/record`: getDisplayMedia + MediaRecorder + download). Next: Phase 1.
