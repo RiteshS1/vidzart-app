@@ -7,7 +7,7 @@ background, a smoothed cursor and click effects. Then you export a clean MP4.
 This repo holds the **web app**: landing page, local dashboard and editor. The recorder that also
 captures cursor and click events is in the companion repo **vidzart-extension**.
 
-> **Status:** pre-alpha. Docs only, no code yet.
+> **Status:** pre-alpha. Next.js is scaffolded; the recorder and editor are not built yet.
 
 ## Planned features
 
@@ -27,7 +27,11 @@ from your browser to that provider. There are no Vidzart servers, accounts or cl
 
 ## Running locally
 
-Coming soon, once the Next.js app is scaffolded (`pnpm install`, `pnpm dev`).
+```sh
+pnpm install
+pnpm dev        # http://localhost:3000
+pnpm build      # static site in out/
+```
 
 ## Support
 

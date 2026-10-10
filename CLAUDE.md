@@ -29,12 +29,13 @@ static site. Support is an optional "Buy me a coffee" link.
 
 ## Tech stack
 
-Verified with `npm view` on 2026-10-11. Re-check when scaffolding.
+Installed versions are pinned in `package.json` / `pnpm-lock.yaml` (scaffolded 2026-10-11).
 
 - **Next.js 16.4 (App Router)** with **static export** (`output: "export"`). No API routes, server
-  actions or middleware: there is no server.
-- **React 19.3**, **TypeScript** strict (7.0.2 is latest; confirm Next supports it, else latest
-  5.x), **Tailwind CSS 4.3**.
+  actions, proxy or `headers()`: there is no server. `cacheComponents` / `partialPrefetching` are
+  deliberately **off** (server data caching; we fetch nothing on the server).
+- **React 19.3**, **TypeScript 5.9** strict (Next's template pins `^5`; TS 7 is out but we follow
+  Next), **Tailwind CSS 4.3** (via the `@tailwindcss/turbopack` loader in `next.config.ts`).
 - **Canvas 2D** for preview (WebGL later only if profiling shows we need it).
 - **WebCodecs** (`VideoDecoder` / `VideoEncoder`) + **Mediabunny 1.61** for demux/mux → MP4.
 - **Web Workers** for decode, thumbnails, export, transcription.
@@ -43,9 +44,15 @@ Verified with `npm view` on 2026-10-11. Re-check when scaffolding.
 - **`@huggingface/transformers` 4.3** for in-browser Whisper (Phase 6).
 - **pnpm**.
 
-## Planned structure
+## Next.js docs: read before writing Next-specific code
 
-Not scaffolded yet. This is the target layout:
+This Next.js version is newer than most model training data and has breaking changes. The docs
+for the **exact installed version** ship in `node_modules/next/dist/docs/` (see `AGENTS.md`, which
+`next dev` keeps in sync). Check them before using a Next API from memory.
+
+## Structure
+
+Scaffolded so far: `src/app/` (root layout + placeholder landing page). Target layout:
 
 ```
 src/
@@ -97,8 +104,9 @@ Cross-Origin-Embedder-Policy: require-corp   (or "credentialless")
   fonts/images/embeds can silently break. `credentialless` is gentler (no-cors requests are sent
   without cookies instead of being blocked); check browser support before choosing it.
 - Consider enabling it **only on the editor route**, so the landing page stays unaffected.
-- With static export, `next.config` `headers()` **does not apply** in production. Headers must be
-  set by the static host (e.g. a `_headers` file or host config). They do apply in `next dev`.
+- With static export, `next.config` `headers()` is **unsupported** (Next errors, even in dev).
+  Production: set the headers in the static host's config (e.g. a `_headers` file). Local testing:
+  serve the built `out/` with a static server that sets them; decide the exact setup in Phase 6.
 - Not needed until Phase 6. Don't enable earlier "just in case".
 
 ## BYOK (bring your own key) AI
@@ -284,8 +292,18 @@ type Segment =
 
 ## Commands
 
-To be filled in once Next.js is scaffolded (`pnpm dev`, `pnpm build`, `pnpm lint`,
-`pnpm typecheck`).
+```sh
+pnpm install      # install deps
+pnpm dev          # dev server on http://localhost:3000
+pnpm build        # static export → out/
+pnpm lint         # ESLint (next core-web-vitals + typescript rules)
+pnpm typecheck    # next typegen && tsc --noEmit
+```
+
+- `typecheck` runs `next typegen` first: globals like `LayoutProps` / `PageProps` live in
+  generated files under `.next/types`, which don't exist on a fresh clone.
+- There is no `pnpm start`; `next start` doesn't work with static export. To preview a build,
+  serve `out/` with any static server (e.g. `pnpm dlx serve out`).
 
 ## Conventions
 
@@ -307,4 +325,4 @@ To be filled in once Next.js is scaffolded (`pnpm dev`, `pnpm build`, `pnpm lint
 
 **Not planned:** accounts/auth, cloud storage, share links, payments, Vidzart-hosted AI.
 
-**Current phase:** none started. Next step is scaffolding Next.js, then Phase 0.
+**Current phase:** Next.js scaffolded (placeholder landing page). Next step: Phase 0.
