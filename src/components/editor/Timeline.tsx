@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import {
+  addZoomAt,
   cutSelectedRange,
   removeSelectedSegment,
   trimEndFrom,
@@ -11,12 +12,14 @@ import { trimsOf } from "@/lib/project/segments";
 import { formatTime } from "@/lib/time/formatTime";
 import { useEditor, useEditorContext } from "./EditorContext";
 import { button } from "./styles";
+import { ZoomLane } from "./ZoomLane";
 
 // The timeline shows the SOURCE timeline (the whole recording), so cut parts
 // stay visible as hatched blocks you can select and restore. Layout:
 //
 //   ruler     | 0:00   0:05   0:10 ...
 //   track     | [ recording ////cut//// recording ]   ← drag to scrub
+//   zoom lane | [ 2.0× ]      [ 1.5× ]                ← drag to add/move/resize zooms
 //   cut lane  | [   drag to select a range   ]        ← then "Cut selection"
 //
 // x = ms / duration × width. The playhead line moves via a direct style write
@@ -64,11 +67,12 @@ export function Timeline() {
     return () => cancelAnimationFrame(frame);
   }, [controller, duration]);
 
-  const msFromEvent = (event: PointerEvent<HTMLElement>): number => {
+  const toMs = (clientX: number): number => {
     const rect = areaRef.current!.getBoundingClientRect();
-    const fraction = (event.clientX - rect.left) / rect.width;
+    const fraction = (clientX - rect.left) / rect.width;
     return Math.min(Math.max(fraction, 0), 1) * duration;
   };
+  const msFromEvent = (event: PointerEvent<HTMLElement>) => toMs(event.clientX);
   const pct = (ms: number) => `${(ms / duration) * 100}%`;
 
   // --- scrubbing on the track -------------------------------------------
@@ -145,6 +149,14 @@ export function Timeline() {
         >
           Trim end ⇥
         </button>
+        <button
+          type="button"
+          className={button}
+          onClick={() => addZoomAt(store, controller.getSourceTime())}
+          title="Add a zoom at the playhead (Z)"
+        >
+          🔍 Add zoom
+        </button>
         {selectedTrim && (
           <button
             type="button"
@@ -168,7 +180,8 @@ export function Timeline() {
         {/* ruler */}
         <div className="relative h-5 text-[10px] opacity-60">
           {ticks.map((t) => (
-            <span key={t} className="absolute top-0 -translate-x-1/2 font-mono" style={{ left: pct(t) }}>
+            // The 0 label would be half off-screen if centered; left-align it.
+            <span key={t} className={`absolute top-0 font-mono ${t === 0 ? "" : "-translate-x-1/2"}`} style={{ left: pct(t) }}>
               {tickLabel(t)}
             </span>
           ))}
@@ -192,6 +205,8 @@ export function Timeline() {
             />
           ))}
         </div>
+
+        <ZoomLane toMs={toMs} duration={duration} />
 
         {/* cut lane: select a range, click cut blocks */}
         <div

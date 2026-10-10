@@ -8,6 +8,7 @@
 // It must stay free of React, DOM lookups and globals so it can run in a
 // worker: everything it needs comes in through its arguments.
 
+import { cameraAt, cameraViewport, type CursorLookup } from "@/lib/effects/camera";
 import type { Background, VidzProject } from "@/lib/project/types";
 import { layoutFrame, type Size } from "./layout";
 
@@ -16,8 +17,18 @@ export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D
 export interface FrameInput {
   /** The decoded source frame, or null if none is available yet. */
   image: CanvasImageSource | null;
-  /** Its size in pixels (CanvasImageSource has no uniform way to ask). */
+  /**
+   * Its intrinsic size in pixels (CanvasImageSource has no uniform way to
+   * ask). drawImage's source rectangle is measured in these pixels.
+   */
   size: Size;
+}
+
+export interface FrameTiming {
+  /** Source time of `frame`, used for time-based effects like zooms. */
+  sourceTime: number;
+  /** Cursor position lookup from events.json, for "follow" zooms. */
+  cursorAt?: CursorLookup;
 }
 
 export function renderFrame(
@@ -25,6 +36,7 @@ export function renderFrame(
   canvas: Size,
   frame: FrameInput,
   project: VidzProject,
+  timing: FrameTiming,
 ): void {
   const { settings } = project;
   const layout = layoutFrame(canvas, frame.size, settings);
@@ -55,8 +67,22 @@ export function renderFrame(
   ctx.roundRect(video.x, video.y, video.width, video.height, cornerRadius);
   ctx.clip();
   if (frame.image) {
+    // The camera picks which part of the source is visible (zooms). We draw
+    // only that crop, stretched over the whole video rect.
+    const camera = cameraAt(project.segments, timing.sourceTime, timing.cursorAt);
+    const crop = cameraViewport(camera);
     ctx.imageSmoothingQuality = "high";
-    ctx.drawImage(frame.image, video.x, video.y, video.width, video.height);
+    ctx.drawImage(
+      frame.image,
+      crop.x * frame.size.width,
+      crop.y * frame.size.height,
+      crop.width * frame.size.width,
+      crop.height * frame.size.height,
+      video.x,
+      video.y,
+      video.width,
+      video.height,
+    );
   } else {
     ctx.fillStyle = "#111";
     ctx.fillRect(video.x, video.y, video.width, video.height);

@@ -1,9 +1,10 @@
 "use client";
 
-import type { AspectRatio, ProjectSettings } from "@/lib/project/types";
+import type { AspectRatio, ProjectSettings, ZoomSegment } from "@/lib/project/types";
 import { BACKGROUND_PRESETS, backgroundToCss } from "@/lib/render/backgrounds";
 import { useEditor, useEditorContext } from "./EditorContext";
 import { panelLabel } from "./styles";
+import { ZoomInspector } from "./ZoomInspector";
 
 const ASPECTS: { value: AspectRatio; label: string }[] = [
   { value: "16:9", label: "16:9" },
@@ -16,6 +17,9 @@ const ASPECTS: { value: AspectRatio; label: string }[] = [
 export function SettingsPanel() {
   const { store } = useEditorContext();
   const settings = useEditor((s) => s.project.settings);
+  const segments = useEditor((s) => s.project.segments);
+  const selectedId = useEditor((s) => s.selectedSegmentId);
+  const selectedZoom = segments.find((s): s is ZoomSegment => s.id === selectedId && s.type === "zoom");
 
   // Slider drags send many updates; the shared coalesce key makes the whole
   // drag a single undo step.
@@ -24,6 +28,7 @@ export function SettingsPanel() {
 
   return (
     <aside className="flex w-full flex-col gap-6 overflow-y-auto lg:w-72" aria-label="Look">
+      {selectedZoom && <ZoomInspector key={selectedZoom.id} zoom={selectedZoom} />}
       <fieldset className="flex flex-col gap-2">
         <legend className={panelLabel}>Aspect ratio</legend>
         <div className="mt-2 grid grid-cols-5 gap-1">

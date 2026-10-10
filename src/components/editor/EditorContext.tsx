@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useSyncExternalStore } from "react";
+import type { CursorLookup } from "@/lib/effects/camera";
 import type { EditorState, EditorStore } from "@/lib/editor/store";
 import type { PlaybackController } from "@/lib/playback/PlaybackController";
 import type { TimeMap } from "@/lib/timeline/timeMap";
@@ -11,6 +12,8 @@ export interface EditorContextValue {
   video: HTMLVideoElement;
   /** Memoized: returns the same TimeMap object until segments change. */
   getTimeMap: () => TimeMap;
+  /** Cursor position from events.json; undefined for plain videos. */
+  cursorAt?: CursorLookup;
 }
 
 export const EditorContext = createContext<EditorContextValue | null>(null);

@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import {
+  addZoomAt,
   cutSelectedRange,
   removeSelectedSegment,
   trimEndFrom,
@@ -11,7 +12,7 @@ import type { EditorContextValue } from "./EditorContext";
 
 /**
  * Space play/pause · ←/→ ±1s (Shift ±5s) · Home/End · [ / ] trim start/end ·
- * Delete cut selection or restore selected cut · ⌘Z / ⇧⌘Z undo/redo
+ * Z add zoom · Delete cut selection / delete selected segment · ⌘Z / ⇧⌘Z undo/redo
  */
 export function useEditorShortcuts({ store, controller, getTimeMap }: EditorContextValue) {
   useEffect(() => {
@@ -67,6 +68,10 @@ export function useEditorShortcuts({ store, controller, getTimeMap }: EditorCont
         case "Delete":
         case "Backspace":
           if (cutSelectedRange(store) || removeSelectedSegment(store)) event.preventDefault();
+          break;
+        case "z":
+        case "Z":
+          addZoomAt(store, controller.getSourceTime());
           break;
         case "Escape":
           store.setUi({ range: null, selectedSegmentId: null });

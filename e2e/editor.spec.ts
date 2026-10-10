@@ -169,3 +169,91 @@ test("playback stops at the trimmed end instead of playing the cut footage", asy
   const stoppedAt = toSeconds(await page.getByTestId("current-time").textContent());
   expect(Math.abs(stoppedAt - outputDuration)).toBeLessThan(0.15);
 });
+
+/** A cheap fingerprint of the preview: sampled pixel values. */
+async function canvasFingerprint(page: Page): Promise<string> {
+  return page.getByTestId("preview-canvas").evaluate((el) => {
+    const canvas = el as HTMLCanvasElement;
+    const data = canvas.getContext("2d")!.getImageData(0, 0, canvas.width, canvas.height).data;
+    const samples: number[] = [];
+    for (let i = 0; i < data.length; i += 4 * 997) samples.push(data[i]!, data[i + 1]!, data[i + 2]!);
+    return samples.join(",");
+  });
+}
+
+test.describe("zooms", () => {
+  test("adding and selecting a zoom zooms the preview; deleting restores it", async ({ page }) => {
+    await openEditor(page);
+    await page.keyboard.press("z");
+    await expect(page.getByTestId("zoom-block")).toHaveCount(1);
+    await expect(page.getByRole("region", { name: "Zoom" })).toBeVisible();
+
+    // Clicking the block seeks to its fully zoomed-in moment.
+    await page.getByTestId("zoom-block").click();
+    await page.waitForTimeout(300);
+    const zoomed = await canvasFingerprint(page);
+
+    await page.keyboard.press("Delete");
+    await expect(page.getByTestId("zoom-block")).toHaveCount(0);
+    await expect.poll(() => canvasFingerprint(page)).not.toBe(zoomed);
+  });
+
+  test("drag on the zoom lane creates a zoom; drag moves and resizes it", async ({ page }) => {
+    await openEditor(page);
+    const lane = page.getByTestId("zoom-lane");
+    const box = (await lane.boundingBox())!;
+    const y = box.y + box.height / 2;
+    await page.mouse.move(box.x + box.width * 0.1, y);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width * 0.4, y, { steps: 5 });
+    await page.mouse.up();
+
+    const block = page.getByTestId("zoom-block");
+    await expect(block).toHaveCount(1);
+    const created = (await block.boundingBox())!;
+    expect(created.x - box.x).toBeCloseTo(box.width * 0.1, -1);
+    expect(created.width).toBeCloseTo(box.width * 0.3, -1);
+
+    // Move right by 20% of the lane.
+    await page.mouse.move(created.x + created.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(created.x + created.width / 2 + box.width * 0.2, y, { steps: 5 });
+    await page.mouse.up();
+    const moved = (await block.boundingBox())!;
+    expect(moved.x - created.x).toBeCloseTo(box.width * 0.2, -1);
+    expect(moved.width).toBeCloseTo(created.width, 0);
+
+    // Resize the end handle outward by 10%.
+    const handle = (await page.getByTestId("zoom-handle-end").boundingBox())!;
+    await page.mouse.move(handle.x + handle.width / 2, y);
+    await page.mouse.down();
+    await page.mouse.move(handle.x + handle.width / 2 + box.width * 0.1, y, { steps: 5 });
+    await page.mouse.up();
+    const resized = (await block.boundingBox())!;
+    expect(resized.width - moved.width).toBeCloseTo(box.width * 0.1, -1);
+
+    // The whole move was one undo step: one undo puts it back.
+    await page.getByRole("button", { name: "Undo" }).click();
+    expect((await block.boundingBox())!.width).toBeCloseTo(moved.width, 0);
+  });
+
+  test("zooms never overlap", async ({ page }) => {
+    await openEditor(page);
+    await page.keyboard.press("Home");
+    await page.keyboard.press("z"); // 0 → 2.5s
+    await page.keyboard.press("z"); // playhead still at 0, inside the first zoom: refused
+    await expect(page.getByTestId("zoom-block")).toHaveCount(1);
+  });
+
+  test("the target picker changes what the zoom shows", async ({ page }) => {
+    await openEditor(page);
+    await page.keyboard.press("z");
+    await page.getByTestId("zoom-block").click();
+    await page.waitForTimeout(300);
+    const centered = await canvasFingerprint(page);
+    const picker = page.getByTestId("zoom-target-picker");
+    const box = (await picker.boundingBox())!;
+    await picker.click({ position: { x: box.width * 0.05, y: box.height * 0.05 } });
+    await expect.poll(() => canvasFingerprint(page)).not.toBe(centered);
+  });
+});
