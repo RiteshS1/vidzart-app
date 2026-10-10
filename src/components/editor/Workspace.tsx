@@ -1,24 +1,35 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { applyAutoZooms } from "@/lib/editor/actions";
 import { EditorStore } from "@/lib/editor/store";
+import { createCursorLookup } from "@/lib/events/cursor";
+import type { VidzEvents } from "@/lib/events/types";
 import { PlaybackController } from "@/lib/playback/PlaybackController";
 import type { VidzProject } from "@/lib/project/types";
 import { buildTimeMap, type TimeMap } from "@/lib/timeline/timeMap";
-import { EditorContext, type EditorContextValue } from "./EditorContext";
+import { APP_VERSION } from "@/lib/version";
+import { writeVidz } from "@/lib/vidz/vidzFile";
+import { EditorContext, useEditorContext, type EditorContextValue } from "./EditorContext";
 import { PreviewCanvas } from "./PreviewCanvas";
 import { SettingsPanel } from "./SettingsPanel";
+import { button } from "./styles";
 import { Timeline } from "./Timeline";
 import { Transport } from "./Transport";
 import { useEditorShortcuts } from "./useEditorShortcuts";
 
 export interface Session {
-  file: File;
+  /** What the user opened (a video or a .vidz), for display and file names. */
+  name: string;
+  video: File;
   url: string;
   project: VidzProject;
+  /** The cursor/click log, if the project came from the extension. */
+  events: VidzEvents | null;
 }
 
-export function Workspace({ session }: { session: Session }) {
+export function Workspace({ session, onClose }: { session: Session; onClose: () => void }) {
   // One store per opened file (the parent re-mounts us with a new `key`).
   const [store] = useState(() => new EditorStore(session.project));
   // The <video> is the frame source for the preview. It's created via a
@@ -38,8 +49,11 @@ export function Workspace({ session }: { session: Session }) {
       }
       return cache.map;
     };
-    return { store, video, getTimeMap, controller: new PlaybackController(video, getTimeMap) };
-  }, [store, video]);
+    const cursorAt = session.events
+      ? createCursorLookup(session.events, { offsetMs: session.project.source.eventsOffsetMs ?? 0 })
+      : undefined;
+    return { store, video, getTimeMap, cursorAt, controller: new PlaybackController(video, getTimeMap) };
+  }, [store, video, session.events, session.project.source.eventsOffsetMs]);
 
   return (
     <>
@@ -47,10 +61,75 @@ export function Workspace({ session }: { session: Session }) {
       <video ref={setVideo} src={session.url} preload="auto" playsInline className="hidden" />
       {value && (
         <EditorContext value={value}>
+          <ProjectBar session={session} onClose={onClose} />
           <EditorLayout value={value} />
         </EditorContext>
       )}
     </>
+  );
+}
+
+function ProjectBar({ session, onClose }: { session: Session; onClose: () => void }) {
+  const { store } = useEditorContext();
+  const [status, setStatus] = useState<string | null>(null);
+  const hasClicks = session.events?.events.some((e) => e.type === "click") ?? false;
+
+  const save = async () => {
+    setStatus("Saving…");
+    const isMp4 = session.video.type.includes("mp4") || session.video.name.toLowerCase().endsWith(".mp4");
+    const blob = await writeVidz({
+      project: store.getState().project,
+      video: session.video,
+      videoName: isMp4 ? "video.mp4" : "video.webm",
+      events: session.events,
+      appVersion: APP_VERSION,
+    });
+    // Download via a temporary <a download>: no permissions, no server.
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${session.name.replace(/\.[^.]+$/, "")}.vidz`;
+    a.click();
+    // Give the browser a moment to start the download before freeing it.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+    setStatus("Saved");
+  };
+
+  return (
+    <header className="flex items-center gap-3 border-b border-black/10 px-4 py-2 dark:border-white/10">
+      <Link href="/" className="font-semibold tracking-tight">
+        Vidzart
+      </Link>
+      <span className="truncate text-sm opacity-60" data-testid="file-name">
+        {session.name}
+      </span>
+      {status && (
+        <span className="text-xs opacity-50" role="status">
+          {status}
+        </span>
+      )}
+      <span className="flex-1" />
+      {session.events && (
+        <button
+          type="button"
+          className={button}
+          disabled={!hasClicks}
+          title={hasClicks ? "Add zooms around your clicks" : "No clicks in the event log"}
+          onClick={() => {
+            const n = applyAutoZooms(store, session.events!);
+            setStatus(n === 0 ? "No auto zooms to add" : `Added ${n} auto zoom${n === 1 ? "" : "s"}`);
+          }}
+        >
+          ✨ Auto zoom
+        </button>
+      )}
+      <button type="button" className={button} onClick={() => void save()} title="Download a .vidz project file">
+        Save project
+      </button>
+      <button type="button" className={button} onClick={onClose}>
+        Open another
+      </button>
+    </header>
   );
 }
 

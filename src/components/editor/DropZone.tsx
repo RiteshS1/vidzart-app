@@ -26,9 +26,9 @@ export function DropZone(props: { onFile: (file: File) => void; error?: string |
         over ? "border-indigo-500 bg-indigo-500/10" : "border-black/15 dark:border-white/20"
       }`}
     >
-      <p className="text-lg font-medium">Drop a video here</p>
+      <p className="text-lg font-medium">Drop a video or .vidz project here</p>
       <p className="text-sm opacity-60">
-        WebM or MP4. It stays on your device; nothing is uploaded.
+        WebM, MP4 or a Vidzart project. It stays on your device; nothing is uploaded.
       </p>
       <button
         type="button"
@@ -36,12 +36,12 @@ export function DropZone(props: { onFile: (file: File) => void; error?: string |
         disabled={props.busy}
         onClick={() => inputRef.current?.click()}
       >
-        {props.busy ? "Opening…" : "Choose a video"}
+        {props.busy ? "Opening…" : "Choose a file"}
       </button>
       <input
         ref={inputRef}
         type="file"
-        accept="video/*"
+        accept="video/*,.vidz"
         aria-label="Choose a video file"
         className="hidden"
         onChange={(event) => {

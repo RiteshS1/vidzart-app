@@ -1,6 +1,8 @@
 // Editing commands shared by toolbar buttons and keyboard shortcuts, so both
 // always do exactly the same thing.
 
+import { generateAutoZooms } from "@/lib/effects/autoZoom";
+import type { VidzEvents } from "@/lib/events/types";
 import { addTrim, addZoom, removeSegment } from "@/lib/project/segments";
 import type { Segment } from "@/lib/project/types";
 import type { EditOptions, EditorStore } from "./store";
@@ -66,4 +68,34 @@ export function removeSelectedSegment(store: EditorStore): boolean {
   editSegments(store, (segments) => removeSegment(segments, selectedSegmentId));
   store.setUi({ selectedSegmentId: null });
   return true;
+}
+
+/**
+ * Regenerates automatic zooms from the click log: previous auto zooms are
+ * replaced, manual zooms are kept (auto ones only fill the gaps between
+ * them). One undo step. Returns how many zooms were added.
+ */
+export function applyAutoZooms(store: EditorStore, log: VidzEvents): number {
+  const { project } = store.getState();
+  const generated = generateAutoZooms(log, project.source.duration, {
+    offsetMs: project.source.eventsOffsetMs ?? 0,
+  });
+  let added = 0;
+  editSegments(store, (segments, duration) => {
+    let next = segments.filter((s) => !(s.type === "zoom" && s.origin === "auto"));
+    for (const zoom of generated) {
+      const before = next.length;
+      next = addZoom(next, zoom.start, zoom.end, duration, {
+        scale: zoom.scale,
+        target: zoom.target,
+        easeInMs: zoom.easeInMs,
+        easeOutMs: zoom.easeOutMs,
+        origin: "auto",
+      });
+      if (next.length > before) added++;
+    }
+    return next;
+  });
+  store.setUi({ selectedSegmentId: null });
+  return added;
 }
