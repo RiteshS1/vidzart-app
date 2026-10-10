@@ -39,4 +39,4 @@ Vidzart is completely free. If you find it helpful, a "Buy me a coffee" link is 
 
 ## License
 
-TBD.
+[MIT](LICENSE)
