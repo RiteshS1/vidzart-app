@@ -7,9 +7,11 @@
     "build": "next build",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test": "vitest run"
   },
   "dependencies": {
+    "mediabunny": "1.60.0",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
@@ -23,7 +25,8 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "5.0.2"
   },
   "packageManager": "pnpm@10.30.3",
   "engines": {
