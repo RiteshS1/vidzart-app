@@ -1,6 +1,8 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { setPendingVideo } from "@/lib/editor/handoff";
 import {
   startScreenRecording,
   type ActiveRecording,
@@ -23,6 +25,7 @@ type Status =
 export function Recorder() {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [withAudio, setWithAudio] = useState(true);
+  const router = useRouter();
 
   const activeRef = useRef<ActiveRecording | null>(null);
   const timerRef = useRef<HTMLSpanElement>(null);
@@ -153,10 +156,24 @@ export function Recorder() {
             <dd className="font-mono">{status.recording.mimeType}</dd>
           </dl>
           <div className="flex gap-3">
+            <button
+              type="button"
+              className={primaryButton}
+              onClick={() => {
+                const { recording } = status;
+                const ext = extensionForMimeType(recording.mimeType);
+                setPendingVideo(
+                  new File([recording.blob], `vidzart-recording.${ext}`, { type: recording.mimeType }),
+                );
+                router.push("/editor");
+              }}
+            >
+              Open in editor
+            </button>
             <a
               href={status.url}
               download={`vidzart-recording.${extensionForMimeType(status.recording.mimeType)}`}
-              className={primaryButton}
+              className={secondaryButton}
             >
               Download
             </a>

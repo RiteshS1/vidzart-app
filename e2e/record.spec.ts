@@ -53,6 +53,12 @@ test("records the screen and offers the file for download", async ({ baseURL }) 
   expect(info.bytes).toBeGreaterThan(10_000);
   expect(info.type).toMatch(/^video\/(webm|mp4)/);
 
+  // Hand the recording straight to the editor.
+  await page.getByRole("button", { name: "Open in editor" }).click();
+  await expect(page).toHaveURL(/\/editor$/);
+  await expect(page.getByTestId("file-name")).toHaveText(/^vidzart-recording\.(webm|mp4)$/);
+  await expect(page.getByTestId("preview-canvas")).toBeVisible();
+
   await browser.close();
 });
 
