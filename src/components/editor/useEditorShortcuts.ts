@@ -23,8 +23,11 @@ export function useEditorShortcuts({ store, controller, getTimeMap }: EditorCont
         target.tagName === "SELECT" ||
         (target.tagName === "INPUT" && (target as HTMLInputElement).type !== "range" && (target as HTMLInputElement).type !== "checkbox"));
 
+    // Keys pressed inside a dialog (e.g. Export) belong to the dialog.
+    const inDialog = (target: EventTarget | null) => target instanceof Element && target.closest("dialog") !== null;
+
     const onKeyDown = (event: KeyboardEvent) => {
-      if (isTyping(event.target)) return;
+      if (isTyping(event.target) || inDialog(event.target)) return;
       const mod = event.metaKey || event.ctrlKey;
 
       if (mod && event.key.toLowerCase() === "z") {
@@ -80,7 +83,7 @@ export function useEditorShortcuts({ store, controller, getTimeMap }: EditorCont
     };
     // Space activates a focused button on keyup; swallow that too.
     const onKeyUp = (event: KeyboardEvent) => {
-      if (event.key === " " && !isTyping(event.target)) event.preventDefault();
+      if (event.key === " " && !isTyping(event.target) && !inDialog(event.target)) event.preventDefault();
     };
 
     window.addEventListener("keydown", onKeyDown);

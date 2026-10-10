@@ -12,9 +12,10 @@ import { buildTimeMap, type TimeMap } from "@/lib/timeline/timeMap";
 import { APP_VERSION } from "@/lib/version";
 import { writeVidz } from "@/lib/vidz/vidzFile";
 import { EditorContext, useEditorContext, type EditorContextValue } from "./EditorContext";
+import { ExportDialog } from "./ExportDialog";
 import { PreviewCanvas } from "./PreviewCanvas";
 import { SettingsPanel } from "./SettingsPanel";
-import { button } from "./styles";
+import { button, primaryButton } from "./styles";
 import { Timeline } from "./Timeline";
 import { Transport } from "./Transport";
 import { useEditorShortcuts } from "./useEditorShortcuts";
@@ -72,6 +73,7 @@ export function Workspace({ session, onClose }: { session: Session; onClose: () 
 function ProjectBar({ session, onClose }: { session: Session; onClose: () => void }) {
   const { store } = useEditorContext();
   const [status, setStatus] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const hasClicks = session.events?.events.some((e) => e.type === "click") ?? false;
 
   const save = async () => {
@@ -129,6 +131,17 @@ function ProjectBar({ session, onClose }: { session: Session; onClose: () => voi
       <button type="button" className={button} onClick={onClose}>
         Open another
       </button>
+      <button type="button" className={primaryButton} onClick={() => setExporting(true)}>
+        Export MP4
+      </button>
+      {exporting && (
+        <ExportDialog
+          video={session.video}
+          events={session.events}
+          name={session.name}
+          onClose={() => setExporting(false)}
+        />
+      )}
     </header>
   );
 }
