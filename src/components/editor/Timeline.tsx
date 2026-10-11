@@ -25,7 +25,8 @@ import { ZoomLane } from "./ZoomLane";
 // x = ms / duration × width. The playhead line moves via a direct style write
 // in an animation-frame loop, not React state.
 
-const TICK_STEPS_MS = [100, 250, 500, 1_000, 2_000, 5_000, 10_000, 15_000, 30_000, 60_000, 120_000, 300_000];
+// No 250: labels show tenths of a second, so 0.25s steps would read "0:00.2, 0:00.5, 0:00.7".
+const TICK_STEPS_MS = [100, 200, 500, 1_000, 2_000, 5_000, 10_000, 15_000, 30_000, 60_000, 120_000, 300_000];
 const MIN_TICK_SPACING_PX = 72;
 
 export function Timeline() {
