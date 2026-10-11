@@ -108,9 +108,70 @@ test("opens a .vidz with an event log and generates auto zooms", async ({ page }
   await expect(page.getByRole("button", { name: "Follow cursor" })).toBeEnabled();
 });
 
+/** Dark-pixel count and a hash of the preview in a box around (fx, fy) (fractions of the canvas). */
+async function region(page: Page, fx: number, fy: number, size = 40) {
+  return page.getByTestId("preview-canvas").evaluate(
+    (el, [x, y, s]) => {
+      const canvas = el as HTMLCanvasElement;
+      const data = canvas.getContext("2d")!.getImageData(Math.floor(canvas.width * x! - s! / 2), Math.floor(canvas.height * y! - s! / 2), s!, s!).data;
+      let dark = 0;
+      let sum = 0;
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i]! + data[i + 1]! + data[i + 2]! < 120) dark++;
+        sum = (sum * 31 + data[i]! + data[i + 1]! * 7 + data[i + 2]! * 13) % 1_000_000_007;
+      }
+      return { dark, sum };
+    },
+    [fx, fy, size],
+  );
+}
+
+test("draws the recorded cursor and click effects, with settings to change them", async ({ page }) => {
+  const vidz = await writeVidz({
+    project: project(4_000),
+    video: new Blob([new Uint8Array(video)]),
+    videoName: "video.webm",
+    events,
+    appVersion: "test",
+  });
+  await openFile(page, "demo.vidz", Buffer.from(await vidz.arrayBuffer()), "application/zip");
+
+  // At t=0 the cursor is at (640, 360) of a 1280×720 viewport: the middle
+  // of the video, which is also the middle of the 16:9 canvas. The test
+  // video is brightly colored there, so dark pixels can only be the arrow.
+  // (At scale 1 in a ~600px preview the arrow is only ~8px tall.)
+  await expect.poll(async () => (await region(page, 0.5, 0.5)).dark).toBeGreaterThan(0);
+  await page.getByLabel("Show cursor").uncheck();
+  await expect.poll(async () => (await region(page, 0.5, 0.5)).dark).toBe(0);
+  await page.getByLabel("Show cursor").check();
+
+  // Bigger cursor → more arrow pixels.
+  await expect.poll(async () => (await region(page, 0.5, 0.5, 80)).dark).toBeGreaterThan(0);
+  const before = (await region(page, 0.5, 0.5, 80)).dark;
+  await page.getByLabel("Cursor size").fill("3");
+  await expect.poll(async () => (await region(page, 0.5, 0.5, 80)).dark).toBeGreaterThan(before * 2);
+
+  // Click effects: at ~1.15s the ripple of the click at t=1000 is on screen
+  // around (1080, 140) of the viewport. Compare Ripple vs None there.
+  await page.getByLabel("Show cursor").uncheck();
+  const track = page.getByTestId("timeline-track");
+  const box = (await track.boundingBox())!;
+  await track.click({ position: { x: box.width * (1150 / 4000), y: box.height / 2 } });
+  // Video rect: a 16:9 source in a 16:9 canvas, padded by 8% of the height.
+  const padX = 0.08 * (9 / 16);
+  const clickX = padX + (1080 / 1280) * (1 - 2 * padX);
+  const clickY = 0.08 + (140 / 720) * (1 - 0.16);
+  await page.waitForTimeout(300); // let the seek land
+  const withRipple = await region(page, clickX, clickY, 60);
+  await page.getByRole("button", { name: "None", exact: true }).click();
+  await expect.poll(async () => (await region(page, clickX, clickY, 60)).sum).not.toBe(withRipple.sum);
+  await expect(page.getByRole("group", { name: "Click effect color" })).toHaveCount(0);
+});
+
 test("plain videos have no auto zoom and no cursor follow", async ({ page }) => {
   await openFile(page, "plain.webm", video, "video/webm");
   await expect(page.getByRole("button", { name: "Auto zoom" })).toHaveCount(0);
+  await expect(page.getByLabel("Show cursor")).toHaveCount(0); // nothing to draw
   await page.keyboard.press("z");
   await expect(page.getByRole("button", { name: "Follow cursor" })).toBeDisabled();
 });
