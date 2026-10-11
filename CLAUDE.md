@@ -71,14 +71,15 @@ src/
                              vidzFile.ts (read/write .vidz, validation, migration hook)
     events/                ✓ events.json types, cursor track (normalize, resample, smooth)
     timeline/              ✓ timeMap: sourceToOutput / outputToSource (trims + speed)
-    render/                ✓ layout math, renderFrame, background presets
+    render/                ✓ layout math, renderFrame, background presets, cursor (arrow + click effects)
     playback/              ✓ PlaybackController: <video> + skip cuts + speed
     editor/                ✓ EditorStore (undo/redo), actions, recorder→editor handoff,
                              extensionHandoff (receives a .vidz from the extension's ready page)
     media/                 ✓ probe (Mediabunny), probeWithElement (fallback)
     recording/             ✓ screenRecorder, mimeType
     time/                  ✓ clock (epochNow), formatTime
-    effects/               ✓ easing, camera (zoom crop), autoZoom (zooms from clicks)
+    effects/               ✓ easing, camera (zoom crop), autoZoom (zooms from clicks),
+                             cursorTrack (smoothed cursor, press state, idle fade, click marks)
                              (planned: cursor rendering, click effects)
     export/                ✓ exportVideo (decode → renderFrame → encode → MP4), worker
                              protocol + client (progress, cancel)
@@ -362,14 +363,16 @@ pnpm test:e2e:prod  # same tests against the production static export (built, se
 - [x] **Phase 3:** MP4 export in a Web Worker with WebCodecs.
 - [x] **Phase 4 (app side):** Open/save `.vidz` files; receive recordings from the extension
       (`/editor?from=extension` → `postMessage` handoff, only from `chrome-extension://` origins).
-- [ ] **Phase 5:** Cursor smoothing and click effects from the event log.
+- [x] **Phase 5:** Cursor smoothing and click effects from the event log.
 - [ ] **Phase 6:** AI: in-browser captions, silence/filler removal, then BYOK features.
 - [ ] **Later:** "Buy me a coffee" link.
 
 **Not planned:** accounts/auth, cloud storage, share links, payments, Vidzart-hosted AI.
 
 **Current phase:** Phase 4 done (extension records tab + events and hands the `.vidz` to the
-editor). Next: Phase 5 (cursor rendering, smoothing and click effects in `renderFrame`).
+editor) and Phase 5 done (drawn cursor with smoothing that snaps onto clicks, press squeeze,
+hide-when-idle, ripple/pulse click effects; same `renderFrame` for preview and export).
+Next: Phase 6 (AI: on-device captions, silence removal, then BYOK).
 
 **Known export limits:** audio in speed-changed pieces is silent (no time-stretching yet; the UI
 can't create speed segments yet anyway); projects over 4 GB can't be saved as .vidz (no Zip64).

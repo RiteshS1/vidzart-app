@@ -6,6 +6,22 @@ coordinate mapping, encoding, browser/extension quirks). Newest entries at the t
 ## Template
 
 ```md
+### 2026-10-12: Drawing the cursor ourselves (Phase 5)
+- **Tab capture has no mouse pointer** in the video; Chrome captures the page's pixels, and the
+  pointer is drawn by the OS on top. So for extension recordings the editor draws one from
+  `events.json`. That's a feature, not a workaround: we choose the path, so it can be smooth.
+- **Smoothing vs clicks:** a centered moving average makes the cursor arrive at a button a bit
+  late/early, so the click ripple appeared *next to* the cursor. Fix: near each press, blend
+  from the smoothed position to the exact one (`weight = 1 - |t - tClick| / snapMs`, eased).
+  Smooth between clicks, exact on them.
+- **Sizes in recorded CSS px:** the arrow is ~20 CSS px of the recorded page, converted with
+  `video.width / crop.width / viewport.width`, so it scales with zooms and resolution like the
+  page itself. At scale 1 in a small preview it's honestly tiny (~8px), which is why there's a
+  size slider.
+- Ripples start on `down`, not `click` (which fires on release, ~100ms later): feels instant.
+- Per-frame queries (`at`, `clicksIn`) are binary searches on arrays built once per
+  (events, settings), cached in `cursorTrackCache`, never a scan per frame.
+
 ### YYYY-MM-DD: Short title
 - **Symptom:** what I saw
 - **Cause:** what was actually going on
