@@ -36,7 +36,7 @@ export function SettingsPanel() {
     store.edit((p) => ({ ...p, settings: { ...p.settings, ...patch } }), { coalesceKey });
 
   return (
-    <aside className="flex w-full flex-col gap-6 overflow-y-auto lg:w-72" aria-label="Look">
+    <aside className="flex w-full flex-col gap-6" aria-label="Look">
       {selectedZoom && <ZoomInspector key={selectedZoom.id} zoom={selectedZoom} />}
       <fieldset className="flex flex-col gap-2">
         <legend className={panelLabel}>Aspect ratio</legend>

@@ -15,6 +15,7 @@ import { writeVidz } from "@/lib/vidz/vidzFile";
 import { EditorContext, useEditorContext, type EditorContextValue } from "./EditorContext";
 import { ExportDialog } from "./ExportDialog";
 import { PreviewCanvas } from "./PreviewCanvas";
+import { AiPanel } from "./AiPanel";
 import { SettingsPanel } from "./SettingsPanel";
 import { button, primaryButton } from "./styles";
 import { Timeline } from "./Timeline";
@@ -65,7 +66,7 @@ export function Workspace({ session, onClose }: { session: Session; onClose: () 
       {value && (
         <EditorContext value={value}>
           <ProjectBar session={session} onClose={onClose} />
-          <EditorLayout value={value} />
+          <EditorLayout value={value} session={session} />
         </EditorContext>
       )}
     </>
@@ -148,7 +149,7 @@ function ProjectBar({ session, onClose }: { session: Session; onClose: () => voi
   );
 }
 
-function EditorLayout({ value }: { value: EditorContextValue }) {
+function EditorLayout({ value, session }: { value: EditorContextValue; session: Session }) {
   useEditorShortcuts(value);
   const { controller } = value;
   useEffect(() => () => controller.pause(), [controller]);
@@ -159,10 +160,42 @@ function EditorLayout({ value }: { value: EditorContextValue }) {
         <div className="flex min-h-[240px] min-w-0 flex-1 flex-col rounded-lg bg-black/[.03] p-4 dark:bg-white/[.03]">
           <PreviewCanvas />
         </div>
-        <SettingsPanel />
+        <Sidebar session={session} />
       </div>
       <Transport />
       <Timeline />
+    </div>
+  );
+}
+
+/** Right-hand panel: "Style" (look settings) or "AI" (analysis tools). */
+function Sidebar({ session }: { session: Session }) {
+  const [tab, setTab] = useState<"style" | "ai">("style");
+  return (
+    <div className="flex min-h-0 w-full flex-col gap-4 lg:w-72">
+      <div role="tablist" aria-label="Sidebar" className="grid grid-cols-2 gap-1 rounded-lg bg-black/[.04] p-1 dark:bg-white/[.06]">
+        {(["style", "ai"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={tab === t}
+            onClick={() => setTab(t)}
+            className={`rounded-md py-1 text-sm font-medium ${tab === t ? "bg-background shadow-sm" : "opacity-60 hover:opacity-100"}`}
+          >
+            {t === "style" ? "Style" : "✨ AI"}
+          </button>
+        ))}
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {/* Both stay mounted, so a running AI task survives switching tabs. */}
+        <div hidden={tab !== "style"}>
+          <SettingsPanel />
+        </div>
+        <div hidden={tab !== "ai"}>
+          <AiPanel video={session.video} />
+        </div>
+      </div>
     </div>
   );
 }

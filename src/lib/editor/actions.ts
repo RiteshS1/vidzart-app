@@ -99,3 +99,22 @@ export function applyAutoZooms(store: EditorStore, log: VidzEvents): number {
   store.setUi({ selectedSegmentId: null });
   return added;
 }
+
+/**
+ * Cuts all the given source ranges (e.g. detected silences) as ONE undo
+ * step. Overlapping/adjacent cuts merge with existing ones (addTrim), so
+ * running it twice changes nothing. Returns how much source time is now cut
+ * that wasn't before.
+ */
+export function cutRanges(store: EditorStore, ranges: readonly { start: number; end: number }[]): number {
+  const cutMs = (segments: readonly Segment[]) =>
+    segments.reduce((sum, s) => sum + (s.type === "trim" ? s.end - s.start : 0), 0);
+  const before = cutMs(store.getState().project.segments);
+  editSegments(store, (segments, duration) => {
+    const next = ranges.reduce<Segment[]>((acc, r) => addTrim(acc, r.start, r.end, duration), [...segments]);
+    // Re-cutting already-cut ranges rebuilds the same trims with new ids;
+    // keep the old array then, so no empty Undo step is recorded.
+    return cutMs(next) === cutMs(segments) ? [...segments] : next;
+  });
+  return cutMs(store.getState().project.segments) - before;
+}
