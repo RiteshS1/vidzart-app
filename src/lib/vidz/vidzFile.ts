@@ -143,9 +143,19 @@ function migrateProject(value: unknown): VidzProject {
   const segments = value.segments.filter(
     (s): s is Json => isObject(s) && typeof s.id === "string" && isNumber(s.start) && isNumber(s.end),
   );
+  // Captions are optional: if they're malformed, drop them rather than
+  // refusing the whole project.
+  const captions = value.captions;
+  const captionsOk =
+    isObject(captions) &&
+    isObject(captions.style) &&
+    Array.isArray(captions.cues) &&
+    captions.cues.every((c) => isObject(c) && isNumber(c.start) && isNumber(c.end) && typeof c.text === "string");
+  const project: Json = { ...value, segments };
+  if (!captionsOk) delete project.captions;
   // Unknown fields are kept (spread), so saving with this version doesn't
   // destroy data a newer version added.
-  return { ...value, segments } as unknown as VidzProject;
+  return project as unknown as VidzProject;
 }
 
 function migrateEvents(value: unknown): VidzEvents {

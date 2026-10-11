@@ -1,5 +1,5 @@
 // Draws one composed output frame: background → shadow → rounded video →
-// cursor and click effects.
+// cursor and click effects → captions.
 //
 // This is THE render function. The preview calls it on every animation frame
 // with a <video> element as the source; the export worker (Phase 3) will call
@@ -12,6 +12,7 @@
 import { cameraAt, cameraViewport, type CursorLookup } from "@/lib/effects/camera";
 import type { CursorTrack } from "@/lib/effects/cursorTrack";
 import type { Background, VidzProject } from "@/lib/project/types";
+import { drawCaption } from "./captions";
 import { drawCursorLayer } from "./cursor";
 import { layoutFrame, type Size } from "./layout";
 
@@ -96,6 +97,9 @@ export function renderFrame(
     ctx.fillRect(video.x, video.y, video.width, video.height);
   }
   ctx.restore();
+
+  // Captions sit on top of everything and don't zoom with the camera.
+  if (project.captions) drawCaption(ctx, project.captions, timing.sourceTime, video, unit);
 
   ctx.restore();
 }

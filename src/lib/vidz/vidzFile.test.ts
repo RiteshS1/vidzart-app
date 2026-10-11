@@ -46,6 +46,24 @@ describe(".vidz round trip", () => {
   });
 });
 
+describe("captions", () => {
+  it("round-trips captions and drops malformed ones instead of failing", async () => {
+    const captions = {
+      visible: true,
+      language: "en",
+      style: { size: 0.045, position: "bottom" as const },
+      cues: [{ id: "a", start: 0, end: 1000, text: "Hi", words: [{ start: 0, end: 1000, text: "Hi" }] }],
+    };
+    const good = await readVidz(await writeVidz({ project: { ...project, captions }, video, videoName: "video.webm", events: null, appVersion: "t" }));
+    expect(good.project.captions).toEqual(captions);
+
+    const broken = { ...project, captions: { visible: true, cues: "nope" } } as unknown as typeof project;
+    const read = await readVidz(await writeVidz({ project: broken, video, videoName: "video.webm", events: null, appVersion: "t" }));
+    expect(read.project.captions).toBeUndefined();
+    expect(read.project.segments).toEqual([]);
+  });
+});
+
 describe("readVidz errors", () => {
   const manifest = {
     format: "vidzart-project",
