@@ -16,6 +16,7 @@ import { EditorContext, useEditorContext, type EditorContextValue } from "./Edit
 import { ExportDialog } from "./ExportDialog";
 import { PreviewCanvas } from "./PreviewCanvas";
 import { AiPanel } from "./AiPanel";
+import { SelectedSegmentInspector } from "./RangeInspectors";
 import { SettingsPanel } from "./SettingsPanel";
 import { button, primaryButton } from "./styles";
 import { Timeline } from "./Timeline";
@@ -195,6 +196,10 @@ function Sidebar({ session }: { session: Session }) {
         ))}
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
+        {/* Above the tabs, so selecting a segment always shows its settings. */}
+        <div className="mb-4 empty:hidden">
+          <SelectedSegmentInspector />
+        </div>
         {/* Both stay mounted, so a running AI task survives switching tabs. */}
         <div hidden={tab !== "style"}>
           <SettingsPanel />

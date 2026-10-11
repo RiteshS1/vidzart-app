@@ -115,12 +115,14 @@ async function region(page: Page, fx: number, fy: number, size = 40) {
       const canvas = el as HTMLCanvasElement;
       const data = canvas.getContext("2d")!.getImageData(Math.floor(canvas.width * x! - s! / 2), Math.floor(canvas.height * y! - s! / 2), s!, s!).data;
       let dark = 0;
+      let white = 0;
       let sum = 0;
       for (let i = 0; i < data.length; i += 4) {
         if (data[i]! + data[i + 1]! + data[i + 2]! < 120) dark++;
+        if (data[i]! > 245 && data[i + 1]! > 245 && data[i + 2]! > 245) white++;
         sum = (sum * 31 + data[i]! + data[i + 1]! * 7 + data[i + 2]! * 13) % 1_000_000_007;
       }
-      return { dark, sum };
+      return { dark, white, sum };
     },
     [fx, fy, size],
   );
@@ -166,6 +168,50 @@ test("draws the recorded cursor and click effects, with settings to change them"
   await page.getByRole("button", { name: "None", exact: true }).click();
   await expect.poll(async () => (await region(page, clickX, clickY, 60)).sum).not.toBe(withRipple.sum);
   await expect(page.getByRole("group", { name: "Click effect color" })).toHaveCount(0);
+});
+
+test("a blur box hides part of the frame and can be redrawn", async ({ page }) => {
+  await openFile(page, "plain.webm", video, "video/webm");
+  // The test video has a white "button" at (480–600, 40–100) of 640×360:
+  // the only detail in the frame. Blurring its edge turns pure-white pixels
+  // into a white/red mix, so we count pure-white pixels around the corner.
+  const padX = 0.08 * (9 / 16);
+  const [bx, by] = [padX + (480 / 640) * (1 - 2 * padX), 0.08 + (40 / 360) * 0.84];
+
+  const lane = page.getByTestId("blur-lane");
+  const box = (await lane.boundingBox())!;
+  await page.mouse.move(box.x + 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width - 2, box.y + box.height / 2, { steps: 4 });
+  await page.mouse.up();
+  await expect(page.getByTestId("blur-block")).toHaveCount(1);
+  // Clicking the block selects it and moves the playhead into it.
+  await page.getByTestId("blur-block").click();
+  await expect(page.getByRole("region", { name: "Blur" })).toBeVisible();
+  // Default box is in the middle: the corner is still sharp. (Read the
+  // baseline inside the poll: right after a seek the canvas can briefly
+  // show no frame.)
+  let sharp = 0;
+  await expect
+    .poll(async () => {
+      sharp = (await region(page, bx, by, 30)).white;
+      return sharp;
+    })
+    .toBeGreaterThan(100);
+
+  // Draw the box over the white rectangle's corner in the inspector.
+  const picker = page.getByTestId("blur-rect-picker");
+  const p = (await picker.boundingBox())!;
+  await page.mouse.move(p.x + p.width * 0.65, p.y + p.height * 0.02);
+  await page.mouse.down();
+  await page.mouse.move(p.x + p.width * 0.85, p.y + p.height * 0.25, { steps: 5 });
+  await page.mouse.up();
+  await expect.poll(async () => (await region(page, bx, by, 30)).white).toBeLessThan(sharp / 2);
+
+  // Deleting the blur makes it sharp again.
+  await page.getByRole("region", { name: "Blur" }).getByRole("button", { name: "Delete" }).click();
+  await expect(page.getByTestId("blur-block")).toHaveCount(0);
+  await expect.poll(async () => (await region(page, bx, by, 30)).white).toBe(sharp);
 });
 
 test("plain videos have no auto zoom and no cursor follow", async ({ page }) => {

@@ -122,3 +122,38 @@ test("an export can be canceled", async ({ page }) => {
   // Back to the setup screen, ready to try again.
   await expect(dialog.getByRole("button", { name: "Export", exact: true })).toBeVisible();
 });
+
+test("a speed-up shortens the output, in the preview and the exported MP4", async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  await page.goto("/editor");
+  await page.getByLabel("Choose a video file").setInputFiles({ name: "clip.webm", mimeType: "video/webm", buffer: video });
+  await expect(page.getByTestId("file-name")).toHaveText("clip.webm");
+  const full = toSeconds(await page.getByTestId("output-duration").textContent());
+
+  // Drag the first half on the speed lane: 2× by default.
+  const lane = page.getByTestId("speed-lane");
+  const box = (await lane.boundingBox())!;
+  await page.mouse.move(box.x + 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 4 });
+  await page.mouse.up();
+  await expect(page.getByTestId("speed-block")).toContainText("2×");
+  await expect.poll(async () => toSeconds(await page.getByTestId("output-duration").textContent())).toBeLessThan(full - 0.5);
+
+  // 4× in the inspector shortens it further.
+  await page.getByRole("group", { name: "Speed" }).getByRole("button", { name: "4×" }).click();
+  await expect(page.getByTestId("speed-block")).toContainText("4×");
+  const expected = toSeconds(await page.getByTestId("output-duration").textContent());
+  expect(expected).toBeLessThan(full * 0.7);
+
+  await page.getByRole("button", { name: "Export MP4" }).click();
+  const dialog = page.getByRole("dialog", { name: "Export MP4" });
+  await dialog.getByRole("button", { name: "720p" }).click();
+  await dialog.getByRole("button", { name: "Export", exact: true }).click();
+  await expect(dialog.getByTestId("export-summary")).toBeVisible({ timeout: 90_000 });
+  const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("link", { name: "Download MP4" }).click()]);
+  const path = testInfo.outputPath("fast.mp4");
+  await download.saveAs(path);
+  const input = new Input({ formats: ALL_FORMATS, source: new BufferSource(readFileSync(path)) });
+  expect(Math.abs((await input.computeDuration()) - expected)).toBeLessThan(0.2);
+});
