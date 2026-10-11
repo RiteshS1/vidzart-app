@@ -6,6 +6,16 @@ coordinate mapping, encoding, browser/extension quirks). Newest entries at the t
 ## Template
 
 ```md
+### YYYY-MM-DD: Short title
+- **Symptom:** what I saw
+- **Cause:** what was actually going on
+- **Fix:** what I changed (commit hash if useful)
+- **What I learned:** the general lesson, in my own words
+- **Links:** docs, issues, articles
+```
+
+## Log
+
 ### 2026-10-12: Drawing the cursor ourselves (Phase 5)
 - **Tab capture has no mouse pointer** in the video; Chrome captures the page's pixels, and the
   pointer is drawn by the OS on top. So for extension recordings the editor draws one from
@@ -21,16 +31,6 @@ coordinate mapping, encoding, browser/extension quirks). Newest entries at the t
 - Ripples start on `down`, not `click` (which fires on release, ~100ms later): feels instant.
 - Per-frame queries (`at`, `clicksIn`) are binary searches on arrays built once per
   (events, settings), cached in `cursorTrackCache`, never a scan per frame.
-
-### YYYY-MM-DD: Short title
-- **Symptom:** what I saw
-- **Cause:** what was actually going on
-- **Fix:** what I changed (commit hash if useful)
-- **What I learned:** the general lesson, in my own words
-- **Links:** docs, issues, articles
-```
-
-## Log
 
 ### 2026-10-12: Export pipeline with WebCodecs + Mediabunny
 - Per output frame: output time → `outputToSource` → decoded frame → **the same `renderFrame`**
