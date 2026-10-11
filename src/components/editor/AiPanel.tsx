@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { runAiTask } from "@/lib/ai/aiClient";
 import { cutRanges, removeFillerWords } from "@/lib/editor/actions";
+import { ByokTool } from "./ByokTool";
 import { CaptionsTool } from "./CaptionsTool";
 import { useEditor, useEditorContext } from "./EditorContext";
 import { TaskProgress, useTask } from "./TaskProgress";
@@ -17,6 +18,7 @@ export function AiPanel({ video, name }: { video: Blob; name: string }) {
       <CaptionsTool video={video} name={name} />
       <SilenceTool video={video} />
       <FillerTool />
+      <ByokTool />
     </div>
   );
 }

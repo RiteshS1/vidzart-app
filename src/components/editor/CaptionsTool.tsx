@@ -11,7 +11,7 @@ import { useEditor, useEditorContext } from "./EditorContext";
 import { button, panelLabel } from "./styles";
 
 // Whisper language codes we offer; "" = detect automatically.
-const LANGUAGES: [code: string, name: string][] = [
+export const LANGUAGES: [code: string, name: string][] = [
   ["", "Detect automatically"],
   ["en", "English"],
   ["es", "Spanish"],
