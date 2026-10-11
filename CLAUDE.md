@@ -57,15 +57,15 @@ What exists now (✓) and what's planned:
 ```
 src/
   app/
-    page.tsx               ✓ placeholder landing page
+    page.tsx               ✓ landing page (static)
     record/                ✓ Phase 0 recorder (getDisplayMedia + MediaRecorder)
     editor/                ✓ client-only editor shell (EditorLoader → dynamic import, ssr:false)
-    dashboard/               list of local projects (from IndexedDB)
   components/
     recorder/              ✓ Recorder UI
     editor/                ✓ Editor, Workspace (+ Style/AI sidebar), PreviewCanvas, Transport,
                              Timeline, SettingsPanel, DropZone, EditorContext, useEditorShortcuts,
-                             AiPanel (silences, fillers), CaptionsTool, ByokTool, TaskProgress
+                             AiPanel (silences, fillers), CaptionsTool, ByokTool, TaskProgress,
+                             RecentProjects (local dashboard), useAutosave
   lib/
     project/               ✓ types (mirror of the spec), defaults, segment helpers
     vidz/                  ✓ zip.ts (dependency-free zip, zero-copy video slices),
@@ -88,7 +88,8 @@ src/
                              cursorTrack (smoothed cursor, press state, idle fade, click marks)
     export/                ✓ exportVideo (decode → renderFrame → encode → MP4), worker
                              protocol + client (progress, cancel)
-    storage/                 OPFS + IndexedDB helpers
+    storage/               ✓ projects.ts: autosaved projects in IndexedDB (video once, edits
+                             debounced), summaries for the "Recent projects" list on /editor
     ai/                    ✓ protocol + aiClient (one worker per task), models, transcribe
                              (Whisper via transformers.js, worker-only), byok/ (providers,
                              settings in localStorage, prompts + parsers)
@@ -428,6 +429,9 @@ Next: the deferred items below, then "Later".
 **Known export limits:** audio in speed-changed pieces is silent (no time-stretching yet; the UI
 can't create speed segments yet anyway); projects over 4 GB can't be saved as .vidz (no Zip64).
 
-**Deferred from Phase 1** (pick up when needed): filmstrip thumbnails on the timeline (worker),
-saving projects locally (OPFS + IndexedDB) so a reload doesn't lose edits, custom image
-backgrounds.
+**Autosave (done):** opening a file keeps a copy in IndexedDB (in the background); edits save
+800 ms after the last change and on `pagehide`; `/editor` lists "Recent projects". IndexedDB
+rather than OPFS: it stores Blobs on disk too and needs no extra file handling.
+
+**Deferred** (pick up when needed): filmstrip thumbnails on the timeline (worker), custom image
+backgrounds, a UI for speed segments (+ audio time-stretching on export).
