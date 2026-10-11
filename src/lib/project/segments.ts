@@ -1,7 +1,7 @@
 // Pure helpers that return a NEW segments array (never mutate): the editor
 // store keeps old arrays around for undo, so mutation would corrupt history.
 
-import type { Segment, TrimSegment, ZoomSegment } from "./types";
+import type { BlurSegment, Segment, SpeedSegment, TrimSegment, ZoomSegment } from "./types";
 
 /** Cuts shorter than this are almost certainly a mis-drag. */
 export const MIN_TRIM_MS = 50;
@@ -120,4 +120,48 @@ export function updateSegment<T extends Segment>(
   patch: Partial<Omit<T, "id" | "type">>,
 ): Segment[] {
   return segments.map((s) => (s.id === id ? ({ ...s, ...patch } as Segment) : s));
+}
+
+// --- speed and blur -------------------------------------------------------
+
+/** Shorter speed changes or blurs are almost certainly a mis-drag. */
+export const MIN_RANGE_MS = 300;
+export const SPEED_RATES = [1.5, 2, 4, 8] as const;
+/** A centered box, a sensible start before the user draws the real one. */
+export const DEFAULT_BLUR_RECT = { x: 0.35, y: 0.4, width: 0.3, height: 0.2 };
+
+export function speedsOf(segments: readonly Segment[]): SpeedSegment[] {
+  return segments.filter((s): s is SpeedSegment => s.type === "speed").sort((a, b) => a.start - b.start);
+}
+
+export function blursOf(segments: readonly Segment[]): BlurSegment[] {
+  return segments.filter((s): s is BlurSegment => s.type === "blur").sort((a, b) => a.start - b.start);
+}
+
+/**
+ * Adds a speed-up over [start, end), shrunk to the free gap at `start`
+ * (speed segments must not overlap). Unchanged input if there's no room.
+ */
+export function addSpeed(segments: readonly Segment[], start: number, end: number, duration: number, rate = 2): Segment[] {
+  const s0 = Math.max(0, Math.min(start, end));
+  const gap = freeGap(segments, "speed", s0, duration);
+  if (!gap) return [...segments];
+  const s = Math.max(s0, gap.start);
+  const e = Math.min(Math.max(start, end), gap.end);
+  if (e - s < MIN_RANGE_MS) return [...segments];
+  return [...segments, { id: newSegmentId(), type: "speed", start: s, end: e, rate }];
+}
+
+/** Adds a blur box over [start, end). Blurs MAY overlap (two things to hide at once). */
+export function addBlur(
+  segments: readonly Segment[],
+  start: number,
+  end: number,
+  duration: number,
+  rect = DEFAULT_BLUR_RECT,
+): Segment[] {
+  const s = Math.max(0, Math.min(start, end));
+  const e = Math.min(duration, Math.max(start, end));
+  if (e - s < MIN_RANGE_MS) return [...segments];
+  return [...segments, { id: newSegmentId(), type: "blur", start: s, end: e, rect: { ...rect } }];
 }

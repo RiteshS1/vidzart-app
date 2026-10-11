@@ -103,6 +103,10 @@ export class PlaybackController {
     const piece = pieceAtSource(map, now);
     if (piece) {
       if (this.video.playbackRate !== piece.rate) this.video.playbackRate = piece.rate;
+      // The export drops audio in sped-up/slowed parts (no time-stretching
+      // yet), so the preview mutes them too: what you hear is what you get.
+      const muted = piece.rate !== 1;
+      if (this.video.muted !== muted) this.video.muted = muted;
       return;
     }
     const next = nextKeptSource(map, now);

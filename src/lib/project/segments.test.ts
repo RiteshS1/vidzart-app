@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { addTrim, addZoom, freeGap, removeSegment, trimsOf, updateSegment, zoomsOf } from "./segments";
+import { addBlur, addSpeed, blursOf, speedsOf, addTrim, addZoom, freeGap, removeSegment, trimsOf, updateSegment, zoomsOf } from "./segments";
 import type { ZoomSegment } from "./types";
 
 describe("addTrim", () => {
@@ -73,5 +73,32 @@ describe("zooms", () => {
     const next = updateSegment<ZoomSegment>(segments, "a", { scale: 3 });
     expect(zoomsOf(next)[0]!.scale).toBe(3);
     expect(zoomsOf(segments)[0]!.scale).toBe(2);
+  });
+});
+
+describe("speed and blur segments", () => {
+  it("adds speed-ups only into free gaps", () => {
+    let segments = addSpeed([], 3000, 5000, 10_000, 4);
+    expect(speedsOf(segments)).toMatchObject([{ start: 3000, end: 5000, rate: 4 }]);
+    // Running into the first one: shrunk to end where it starts.
+    segments = addSpeed(segments, 1000, 4000, 10_000);
+    expect(speedsOf(segments).map((s) => [s.start, s.end])).toEqual([
+      [1000, 3000],
+      [3000, 5000],
+    ]);
+    // Starting inside another one: no room (like zooms).
+    expect(addSpeed(segments, 1500, 1800, 10_000)).toHaveLength(2);
+    // Too short.
+    expect(addSpeed([], 0, 100, 10_000)).toHaveLength(0);
+  });
+
+  it("lets blurs overlap and clamps them to the video", () => {
+    let segments = addBlur([], 1000, 3000, 10_000);
+    segments = addBlur(segments, 2000, 20_000, 10_000, { x: 0, y: 0, width: 0.5, height: 0.1 });
+    expect(blursOf(segments).map((b) => [b.start, b.end])).toEqual([
+      [1000, 3000],
+      [2000, 10_000],
+    ]);
+    expect(blursOf(segments)[1]!.rect).toEqual({ x: 0, y: 0, width: 0.5, height: 0.1 });
   });
 });
