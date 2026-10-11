@@ -14,3 +14,6 @@ export const easeInOutCubic: Easing = (t) => {
 
 /** Linear interpolation between a and b. */
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
+
+/** Cubic ease-out: fast start, gentle stop (expanding ripples). */
+export const easeOutCubic: Easing = (t) => 1 - (1 - clamp01(t)) ** 3;
