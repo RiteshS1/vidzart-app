@@ -59,6 +59,34 @@ export interface BlurSegment {
 
 export type Segment = ZoomSegment | TrimSegment | SpeedSegment | BlurSegment;
 
+export interface CaptionWord {
+  start: number;
+  end: number;
+  text: string;
+}
+
+export interface CaptionCue {
+  id: string;
+  /** Source-timeline ms. */
+  start: number;
+  end: number;
+  text: string;
+  words?: CaptionWord[];
+}
+
+export interface Captions {
+  visible: boolean;
+  /** BCP 47 tag of the spoken language, e.g. "en". */
+  language?: string;
+  style: {
+    /** Text height as a fraction of the output canvas's shorter side. */
+    size: number;
+    position: "bottom" | "top";
+  };
+  /** Sorted by start, non-overlapping. */
+  cues: CaptionCue[];
+}
+
 export interface VidzProject {
   version: 1;
   source: {
@@ -70,4 +98,6 @@ export interface VidzProject {
   };
   settings: ProjectSettings;
   segments: Segment[];
+  /** Optional: absent until the user generates or adds captions. */
+  captions?: Captions;
 }
