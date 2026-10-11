@@ -1,6 +1,7 @@
 // Editing commands shared by toolbar buttons and keyboard shortcuts, so both
 // always do exactly the same thing.
 
+import { findFillers, withoutFillers } from "@/lib/captions/fillers";
 import { generateAutoZooms } from "@/lib/effects/autoZoom";
 import type { VidzEvents } from "@/lib/events/types";
 import { addTrim, addZoom, removeSegment } from "@/lib/project/segments";
@@ -117,4 +118,21 @@ export function cutRanges(store: EditorStore, ranges: readonly { start: number; 
     return cutMs(next) === cutMs(segments) ? [...segments] : next;
   });
   return cutMs(store.getState().project.segments) - before;
+}
+
+/**
+ * Cuts the filler words found in the captions and removes them from the
+ * caption text, as one undo step. Returns how many were cut.
+ */
+export function removeFillerWords(store: EditorStore): number {
+  const { captions } = store.getState().project;
+  if (!captions) return 0;
+  const cuts = findFillers(captions.cues);
+  if (cuts.length === 0) return 0;
+  store.edit((p) => ({
+    ...p,
+    segments: cuts.reduce<Segment[]>((acc, c) => addTrim(acc, c.start, c.end, p.source.duration), [...p.segments]),
+    captions: p.captions && { ...p.captions, cues: withoutFillers(p.captions.cues) },
+  }));
+  return cuts.length;
 }

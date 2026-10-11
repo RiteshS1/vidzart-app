@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import { runAiTask } from "@/lib/ai/aiClient";
-import { cutRanges } from "@/lib/editor/actions";
+import { cutRanges, removeFillerWords } from "@/lib/editor/actions";
 import { CaptionsTool } from "./CaptionsTool";
-import { useEditorContext } from "./EditorContext";
+import { useEditor, useEditorContext } from "./EditorContext";
 import { TaskProgress, useTask } from "./TaskProgress";
 import { button, panelLabel } from "./styles";
 
@@ -16,6 +16,7 @@ export function AiPanel({ video, name }: { video: Blob; name: string }) {
     <div className="flex flex-col gap-6">
       <CaptionsTool video={video} name={name} />
       <SilenceTool video={video} />
+      <FillerTool />
     </div>
   );
 }
@@ -78,6 +79,36 @@ function SilenceTool({ video }: { video: Blob }) {
           Cut silences
         </button>
       )}
+      {message && <p className="text-xs opacity-70">{message}</p>}
+    </section>
+  );
+}
+
+function FillerTool() {
+  const { store } = useEditorContext();
+  const hasWords = useEditor((s) => s.project.captions?.cues.some((c) => c.words?.length) ?? false);
+  const [message, setMessage] = useState<string | null>(null);
+  return (
+    <section className="flex flex-col gap-2" aria-labelledby="filler-title">
+      <h3 id="filler-title" className={panelLabel}>
+        Remove filler words
+      </h3>
+      <p className="text-xs opacity-60">
+        Cuts &ldquo;um&rdquo; and &ldquo;uh&rdquo; using the captions&apos; word timings. Best effort: Whisper often leaves
+        fillers out of the transcript, and those can&apos;t be found.
+      </p>
+      <button
+        type="button"
+        className={`${button} self-start`}
+        disabled={!hasWords}
+        title={hasWords ? undefined : "Generate captions first"}
+        onClick={() => {
+          const n = removeFillerWords(store);
+          setMessage(n === 0 ? "No filler words in the transcript." : `Cut ${n} filler word${n === 1 ? "" : "s"}.`);
+        }}
+      >
+        Cut filler words
+      </button>
       {message && <p className="text-xs opacity-70">{message}</p>}
     </section>
   );

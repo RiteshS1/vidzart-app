@@ -1,6 +1,8 @@
 import path from "node:path";
 import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
+import { createProject } from "../src/lib/project/defaults";
+import { writeVidz } from "../src/lib/vidz/vidzFile";
 
 // AI-tab tools. Test media is generated in the browser: a canvas video with
 // an oscillator soundtrack whose volume follows a script, e.g. tone 1s,
@@ -111,6 +113,46 @@ test("Cut silences explains when a video has no audio", async ({ page }) => {
   await openVideo(page, Buffer.from(video, "base64"));
   await page.getByRole("button", { name: "Cut silences" }).click();
   await expect(page.getByText("This video has no audio track.")).toBeVisible({ timeout: 30_000 });
+});
+
+test("Cut filler words uses caption word timings and fixes the caption text", async ({ page }) => {
+  await page.goto("/editor");
+  const video = await makeVideoWithAudio(page, [[3000, true]]);
+  const project = {
+    ...createProject({ duration: 3000, width: 320, height: 180, fps: 30 }),
+    captions: {
+      visible: true,
+      style: { size: 0.05, position: "bottom" as const },
+      cues: [
+        {
+          id: "c1",
+          start: 200,
+          end: 2000,
+          text: "Um, click record.",
+          words: [
+            { start: 200, end: 600, text: "Um," },
+            { start: 900, end: 1300, text: "click" },
+            { start: 1300, end: 2000, text: "record." },
+          ],
+        },
+      ],
+    },
+  };
+  const vidz = await writeVidz({ project, video: new Blob([new Uint8Array(video)]), videoName: "video.webm", events: null, appVersion: "t" });
+  await page.getByLabel("Choose a video file").setInputFiles({ name: "talk.vidz", mimeType: "application/zip", buffer: Buffer.from(await vidz.arrayBuffer()) });
+  await expect(page.getByTestId("file-name")).toHaveText("talk.vidz");
+  await page.getByRole("tab", { name: "✨ AI" }).click();
+
+  await expect(page.getByLabel("Caption at 0:00.2")).toHaveValue("Um, click record.");
+  await page.getByRole("button", { name: "Cut filler words" }).click();
+  await expect(page.getByText("Cut 1 filler word.")).toBeVisible();
+  await expect(page.getByTestId("trim-block")).toHaveCount(1);
+  await expect(page.getByLabel("Caption at 0:00.2")).toHaveValue("Click record.");
+
+  // One undo step brings back both the audio and the text.
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByTestId("trim-block")).toHaveCount(0);
+  await expect(page.getByLabel("Caption at 0:00.2")).toHaveValue("Um, click record.");
 });
 
 /** Records a canvas video whose soundtrack is the given WAV file (real time). */
