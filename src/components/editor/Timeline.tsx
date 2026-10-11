@@ -12,7 +12,7 @@ import { trimsOf } from "@/lib/project/segments";
 import { formatTime } from "@/lib/time/formatTime";
 import { useEditor, useEditorContext } from "./EditorContext";
 import { button } from "./styles";
-import { ZoomLane } from "./ZoomLane";
+import { SegmentLane } from "./SegmentLane";
 
 // The timeline shows the SOURCE timeline (the whole recording), so cut parts
 // stay visible as hatched blocks you can select and restore. Layout:
@@ -20,6 +20,8 @@ import { ZoomLane } from "./ZoomLane";
 //   ruler     | 0:00   0:05   0:10 ...
 //   track     | [ recording ////cut//// recording ]   ← drag to scrub
 //   zoom lane | [ 2.0× ]      [ 1.5× ]                ← drag to add/move/resize zooms
+//   speed     |        [ ⏩ 2× ]                       ← same, for speed-ups
+//   blur      |   [ blur ]   [ blur ]                   ← same, for blur boxes
 //   cut lane  | [   drag to select a range   ]        ← then "Cut selection"
 //
 // x = ms / duration × width. The playhead line moves via a direct style write
@@ -207,7 +209,9 @@ export function Timeline() {
           ))}
         </div>
 
-        <ZoomLane toMs={toMs} duration={duration} />
+        <SegmentLane kind="zoom" toMs={toMs} duration={duration} />
+        <SegmentLane kind="speed" toMs={toMs} duration={duration} />
+        <SegmentLane kind="blur" toMs={toMs} duration={duration} />
 
         {/* cut lane: select a range, click cut blocks */}
         <div
