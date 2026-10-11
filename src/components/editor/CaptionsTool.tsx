@@ -78,7 +78,7 @@ export function CaptionsTool({ video, name }: { video: Blob; name: string }) {
         <>
           <div className="flex gap-2">
             <label className="flex flex-1 flex-col gap-1 text-xs">
-              <span className="opacity-60">Model</span>
+              <span className="opacity-60">Speech model</span>
               <select
                 value={model}
                 onChange={(e) => setModel(e.target.value as WhisperModel)}

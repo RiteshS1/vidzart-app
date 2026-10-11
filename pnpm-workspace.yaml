@@ -1,3 +1,11 @@
+# Dependencies whose install scripts we deliberately skip (pnpm 10 asks).
+# - sharp, onnxruntime-node, protobufjs: native/Node-only parts of Next and
+#   transformers.js. The app runs in the browser (onnxruntime-web), so their
+#   binaries are never used, and skipping them keeps installs (and Vercel
+#   builds) fast.
+# - unrs-resolver: an ESLint helper that works without its native build.
 ignoredBuiltDependencies:
+  - onnxruntime-node
+  - protobufjs
   - sharp
   - unrs-resolver

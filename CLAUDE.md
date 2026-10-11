@@ -172,6 +172,9 @@ Cross-Origin-Embedder-Policy: require-corp   (or "credentialless")
   Runtime's WASM from jsDelivr (transformers.js's default), both once and then cached by the
   browser. Self-hosting the runtime would put a 27 MB file in `out/`, over some static hosts'
   per-file limits; revisit if needed (`env.backends.onnx.wasm.wasmPaths`).
+  Verified 2026-10-12 by logging requests on the production build. Note: Turbopack still
+  emits onnxruntime-web's own 26 MB `.wasm` into `out/_next/static/media/` (unused at runtime).
+  Fine on Vercel; a host with a 25 MB per-file cap (Cloudflare Pages) would reject the deploy.
 - **Silences:** loudness per 20 ms window, threshold adapted to the recording (floor ≥ -70 dB
   + 25 % toward the speech level). Fillers: from word timings; best effort, since Whisper often
   omits "um"/"uh".

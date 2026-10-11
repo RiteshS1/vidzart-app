@@ -202,7 +202,7 @@ test.describe("captions (downloads a ~40 MB model; opt-in)", () => {
     const video = await makeVideoFromWav(page, readFileSync(path.join(__dirname, "fixtures/speech.wav")));
     await openVideo(page, video);
 
-    await page.getByLabel("Model").selectOption("tiny");
+    await page.getByLabel("Speech model").selectOption("tiny");
     await page.getByLabel("Spoken language").selectOption("en");
     await page.getByRole("button", { name: "Generate captions" }).click();
     await expect(page.getByText(/^Created \d+ captions/)).toBeVisible({ timeout: 240_000 });
