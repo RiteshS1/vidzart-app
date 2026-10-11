@@ -12,6 +12,7 @@
     "test:e2e:prod": "E2E_PROD=1 playwright test"
   },
   "dependencies": {
+    "@huggingface/transformers": "4.3.0",
     "mediabunny": "1.60.0",
     "next": "16.4.0",
     "react": "19.3.0",

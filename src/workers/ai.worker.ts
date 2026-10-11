@@ -27,5 +27,11 @@ async function run(task: AiTask) {
       if (!audio) return { ranges: [], hasAudio: false };
       return { ranges: detectSilences(audio.samples, audio.sampleRate, task.options), hasAudio: true };
     }
+    case "transcribe": {
+      // Imported on demand: transformers.js + ONNX Runtime are large, and
+      // only this task needs them.
+      const { transcribe } = await import("@/lib/ai/transcribe");
+      return transcribe(task.video, task.options, progress);
+    }
   }
 }
