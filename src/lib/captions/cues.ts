@@ -1,18 +1,21 @@
 // Turns word timings from speech recognition into caption cues: short,
 // readable lines that appear and disappear with the speech.
 //
-// Subtitle style guides (Netflix, BBC) agree on roughly: at most ~42
-// characters per line, at most ~6 s on screen, break at sentence ends and at
+// Subtitle style guides (Netflix, BBC) agree on roughly: at most two lines
+// of ~42 characters, at most ~6 s on screen, break at sentence ends and at
 // pauses. We build cues greedily, word by word, starting a new cue when:
-//   - adding the word would exceed MAX_CHARS,
+//   - adding the word would exceed MAX_CHARS (two lines' worth),
 //   - there's a pause before the word (> PAUSE_MS),
-//   - the cue already ends a sentence and is reasonably long,
+//   - the cue already ends a sentence (or a clause, once it's a full line
+//     long) and is reasonably long,
 //   - or the cue would last longer than MAX_MS.
+// The renderer wraps a cue onto two balanced lines when needed.
 
 import { newSegmentId } from "@/lib/project/segments";
 import type { CaptionCue, CaptionWord } from "@/lib/project/types";
 
-const MAX_CHARS = 42;
+const LINE_CHARS = 42;
+const MAX_CHARS = LINE_CHARS * 2;
 const MAX_MS = 6000;
 const PAUSE_MS = 700;
 const SENTENCE_MIN_CHARS = 16;
@@ -36,8 +39,9 @@ export function wordsToCues(words: readonly CaptionWord[], makeId: () => string 
       const tooLong = text.length + 1 + word.text.trim().length > MAX_CHARS;
       const pause = word.start - last.end > PAUSE_MS;
       const sentenceEnd = /[.!?…]["')\]]?$/.test(last.text.trim()) && text.length >= SENTENCE_MIN_CHARS;
+      const clauseEnd = /[,;:]$/.test(last.text.trim()) && text.length >= LINE_CHARS;
       const tooSlow = word.end - current[0]!.start > MAX_MS;
-      if (tooLong || pause || sentenceEnd || tooSlow) flush();
+      if (tooLong || pause || sentenceEnd || clauseEnd || tooSlow) flush();
     }
     current.push({ start: word.start, end: word.end, text: word.text.trim() });
   }

@@ -39,8 +39,26 @@ export function drawCaption(ctx: Ctx2D, captions: Captions, sourceTime: number, 
   ctx.restore();
 }
 
-/** Greedy word wrap to a maximum line width (in the current font). */
+/**
+ * Word wrap that balances lines: "a long caption that just / fits" looks
+ * worse than "a long caption / that just fits". Find the narrowest width
+ * that still needs no more lines than the greedy wrap at maxWidth.
+ */
 function wrap(ctx: Ctx2D, text: string, maxWidth: number): string[] {
+  const lines = greedyWrap(ctx, text, maxWidth);
+  if (lines.length < 2) return lines;
+  let lo = 0;
+  let hi = maxWidth;
+  for (let i = 0; i < 12; i++) {
+    const mid = (lo + hi) / 2;
+    if (greedyWrap(ctx, text, mid).length <= lines.length) hi = mid;
+    else lo = mid;
+  }
+  return greedyWrap(ctx, text, hi);
+}
+
+/** Greedy word wrap to a maximum line width (in the current font). */
+function greedyWrap(ctx: Ctx2D, text: string, maxWidth: number): string[] {
   const lines: string[] = [];
   let line = "";
   for (const word of text.split(/\s+/)) {
