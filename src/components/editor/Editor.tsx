@@ -8,13 +8,15 @@ import { probeVideo, type VideoInfo } from "@/lib/media/probe";
 import { probeWithElement } from "@/lib/media/probeWithElement";
 import { createProject } from "@/lib/project/defaults";
 import { readVidz } from "@/lib/vidz/vidzFile";
+import { createStoredProject, getStoredProject } from "@/lib/storage/projects";
 import { DropZone } from "./DropZone";
+import { RecentProjects } from "./RecentProjects";
 import { Workspace, type Session } from "./Workspace";
 
 const isVidz = (file: File) => file.name.toLowerCase().endsWith(".vidz") || file.type === "application/zip";
 
 /** Opens a plain video: probe it and start a fresh project. */
-async function sessionFromVideo(file: File, url: string): Promise<Omit<Session, "url">> {
+async function sessionFromVideo(file: File, url: string): Promise<Omit<Session, "url" | "storedId">> {
   let info: VideoInfo;
   try {
     info = await probeVideo(file);
@@ -28,42 +30,73 @@ async function sessionFromVideo(file: File, url: string): Promise<Omit<Session, 
   return { name: file.name, video: file, project, events: null };
 }
 
+const errorText = (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback);
+
 export default function Editor() {
   const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const openCount = useRef(0);
 
-  const open = useCallback(async (file: File) => {
-    const attempt = ++openCount.current;
-    setBusy(true);
-    setError(null);
-    let url: string | null = null;
-    try {
-      let next: Omit<Session, "url">;
-      if (isVidz(file)) {
-        // A saved project: video + events + edits, all in one file.
-        const contents = await readVidz(file);
-        next = { name: file.name, video: contents.video, project: contents.project, events: contents.events };
-        url = URL.createObjectURL(contents.video);
-      } else {
-        url = URL.createObjectURL(file);
-        next = await sessionFromVideo(file, url);
-      }
-      if (attempt !== openCount.current) {
-        URL.revokeObjectURL(url); // a newer file was chosen meanwhile
-        return;
-      }
-      setSession({ ...next, url });
-    } catch (e) {
-      if (url) URL.revokeObjectURL(url);
-      if (attempt === openCount.current) {
-        setError(e instanceof Error ? e.message : "Couldn't open this file.");
-      }
-    } finally {
-      if (attempt === openCount.current) setBusy(false);
+  const show = useCallback((next: Omit<Session, "url">, url: string, attempt: number) => {
+    if (attempt !== openCount.current) {
+      URL.revokeObjectURL(url); // a newer file was chosen meanwhile
+      return false;
     }
+    setSession({ ...next, url });
+    return true;
   }, []);
+
+  const open = useCallback(
+    async (file: File) => {
+      const attempt = ++openCount.current;
+      setBusy(true);
+      setError(null);
+      let url: string | null = null;
+      try {
+        let next: Omit<Session, "url" | "storedId">;
+        if (isVidz(file)) {
+          // A saved project: video + events + edits, all in one file.
+          const contents = await readVidz(file);
+          next = { name: file.name, video: contents.video, project: contents.project, events: contents.events };
+          url = URL.createObjectURL(contents.video);
+        } else {
+          url = URL.createObjectURL(file);
+          next = await sessionFromVideo(file, url);
+        }
+        if (!show({ ...next, storedId: null }, url, attempt)) return;
+        // Keep a copy in this browser (autosave). Copying a big video takes a
+        // moment, so the editor opens first and autosave starts once it's done.
+        createStoredProject(next).then(
+          (storedId) => setSession((s) => (s?.url === url ? { ...s, storedId } : s)),
+          (e: unknown) => setNotice(`Couldn't keep a copy in this browser (${errorText(e, "storage error")}). Use "Save project" to keep your edits.`),
+        );
+      } catch (e) {
+        if (url) URL.revokeObjectURL(url);
+        if (attempt === openCount.current) setError(errorText(e, "Couldn't open this file."));
+      } finally {
+        if (attempt === openCount.current) setBusy(false);
+      }
+    },
+    [show],
+  );
+
+  const openStored = useCallback(
+    async (id: string) => {
+      const attempt = ++openCount.current;
+      setError(null);
+      try {
+        const stored = await getStoredProject(id);
+        if (!stored) throw new Error("This project is no longer saved in this browser.");
+        const url = URL.createObjectURL(stored.video);
+        show({ name: stored.name, video: stored.video, project: stored.project, events: stored.events, storedId: id }, url, attempt);
+      } catch (e) {
+        if (attempt === openCount.current) setError(errorText(e, "Couldn't open this project."));
+      }
+    },
+    [show],
+  );
 
   // Coming from /record with a fresh recording? Open it straight away.
   // The handoff is one-shot (taking it clears it), so we must start opening
@@ -90,7 +123,14 @@ export default function Editor() {
     <div className="flex h-dvh flex-col">
       {session ? (
         // `key` re-mounts the workspace (new store, new controller) per file.
-        <Workspace key={session.url} session={session} onClose={() => setSession(null)} />
+        <>
+          {notice && (
+            <p className="bg-amber-500/15 px-4 py-1 text-xs" role="note">
+              {notice}
+            </p>
+          )}
+          <Workspace key={session.url} session={session} onClose={() => setSession(null)} />
+        </>
       ) : (
         <>
           <header className="flex items-center gap-3 border-b border-black/10 px-4 py-2 dark:border-white/10">
@@ -98,8 +138,9 @@ export default function Editor() {
               Vidzart
             </Link>
           </header>
-          <main className="flex flex-1 items-center justify-center p-6">
+          <main className="flex flex-1 flex-col items-center justify-center gap-8 overflow-y-auto p-6">
             <DropZone onFile={open} error={error} busy={busy} />
+            <RecentProjects onOpen={(id) => void openStored(id)} />
           </main>
         </>
       )}

@@ -20,6 +20,7 @@ import { SettingsPanel } from "./SettingsPanel";
 import { button, primaryButton } from "./styles";
 import { Timeline } from "./Timeline";
 import { Transport } from "./Transport";
+import { useAutosave } from "./useAutosave";
 import { useEditorShortcuts } from "./useEditorShortcuts";
 
 export interface Session {
@@ -30,6 +31,8 @@ export interface Session {
   project: VidzProject;
   /** The cursor/click log, if the project came from the extension. */
   events: VidzEvents | null;
+  /** Id of the copy saved in this browser (autosave); null until it exists or if saving failed. */
+  storedId: string | null;
 }
 
 export function Workspace({ session, onClose }: { session: Session; onClose: () => void }) {
@@ -75,6 +78,7 @@ export function Workspace({ session, onClose }: { session: Session; onClose: () 
 
 function ProjectBar({ session, onClose }: { session: Session; onClose: () => void }) {
   const { store } = useEditorContext();
+  const autosave = useAutosave(store, session.storedId);
   const [status, setStatus] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const hasClicks = session.events?.events.some((e) => e.type === "click") ?? false;
@@ -113,6 +117,9 @@ function ProjectBar({ session, onClose }: { session: Session; onClose: () => voi
           {status}
         </span>
       )}
+      <span className="text-xs opacity-40" data-testid="autosave" title="Your edits are kept in this browser">
+        {autosave === "saving" ? "Saving…" : autosave === "saved" ? "Saved in this browser" : autosave === "error" ? "Couldn't save in this browser" : ""}
+      </span>
       <span className="flex-1" />
       {session.events && (
         <button
