@@ -54,7 +54,7 @@ pnpm test:e2e   # browser tests (Playwright, uses your installed Chrome)
 
 ## Support
 
-Vidzart is completely free. If you find it helpful, a "Buy me a coffee" link is coming.
+Vidzart is completely free. If you find it helpful, you can [buy me a coffee ☕](https://buymeacoffee.com/riteshs).
 
 ## License
 

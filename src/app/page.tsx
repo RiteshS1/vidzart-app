@@ -5,6 +5,7 @@ import Link from "next/link";
 
 const EXTENSION_REPO = "https://github.com/RiteshS1/vidzart-extension";
 const APP_REPO = "https://github.com/RiteshS1/vidzart-app";
+const COFFEE = "https://buymeacoffee.com/riteshs";
 
 const FEATURES = [
   {
@@ -62,6 +63,9 @@ export default function Home() {
           </Link>
           <a href={APP_REPO} className="hover:opacity-100">
             GitHub
+          </a>
+          <a href={COFFEE} className="hover:opacity-100">
+            ☕ Support
           </a>
         </nav>
       </header>
@@ -172,7 +176,12 @@ export default function Home() {
       </main>
 
       <footer className="mx-auto flex w-full max-w-5xl flex-wrap justify-between gap-2 px-6 py-6 text-xs opacity-60">
-        <span>Vidzart is free and open source (MIT).</span>
+        <span>
+          Vidzart is free and open source (MIT). Found it helpful?{" "}
+          <a href={COFFEE} className="underline">
+            Buy me a coffee ☕
+          </a>
+        </span>
         <span className="flex gap-4">
           <a href={APP_REPO} className="hover:underline">
             Web app

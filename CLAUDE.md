@@ -416,7 +416,7 @@ VIDZART_TEST_WHISPER=1 pnpm test:e2e   # also run the on-device captions test (d
       (`/editor?from=extension` → `postMessage` handoff, only from `chrome-extension://` origins).
 - [x] **Phase 5:** Cursor smoothing and click effects from the event log.
 - [x] **Phase 6:** AI: in-browser captions, silence/filler removal, then BYOK features.
-- [ ] **Later:** "Buy me a coffee" link.
+- [x] **"Buy me a coffee" link** (https://buymeacoffee.com/riteshs): landing page header/footer, editor start page.
 
 **Not planned:** accounts/auth, cloud storage, share links, payments, Vidzart-hosted AI.
 

@@ -137,6 +137,10 @@ export default function Editor() {
             <Link href="/" className="font-semibold tracking-tight">
               Vidzart
             </Link>
+            <span className="flex-1" />
+            <a href="https://buymeacoffee.com/riteshs" target="_blank" rel="noreferrer" className="text-xs opacity-60 hover:opacity-100">
+              ☕ Buy me a coffee
+            </a>
           </header>
           <main className="flex flex-1 flex-col items-center justify-center gap-8 overflow-y-auto p-6">
             <DropZone onFile={open} error={error} busy={busy} />
