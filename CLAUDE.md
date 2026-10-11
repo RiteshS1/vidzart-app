@@ -63,15 +63,21 @@ src/
     dashboard/               list of local projects (from IndexedDB)
   components/
     recorder/              ✓ Recorder UI
-    editor/                ✓ Editor, Workspace, PreviewCanvas, Transport, Timeline,
-                             SettingsPanel, DropZone, EditorContext, useEditorShortcuts
+    editor/                ✓ Editor, Workspace (+ Style/AI sidebar), PreviewCanvas, Transport,
+                             Timeline, SettingsPanel, DropZone, EditorContext, useEditorShortcuts,
+                             AiPanel (silences, fillers), CaptionsTool, ByokTool, TaskProgress
   lib/
     project/               ✓ types (mirror of the spec), defaults, segment helpers
     vidz/                  ✓ zip.ts (dependency-free zip, zero-copy video slices),
                              vidzFile.ts (read/write .vidz, validation, migration hook)
     events/                ✓ events.json types, cursor track (normalize, resample, smooth)
+    audio/                 ✓ decode (mono + resample, Mediabunny), silence (adaptive threshold),
+                             chunks (split long audio at quiet moments)
+    captions/              ✓ cues (words → readable cues, cueAt), subtitles (SRT/VTT in output
+                             time), fillers (um/uh from word timings)
     timeline/              ✓ timeMap: sourceToOutput / outputToSource (trims + speed)
-    render/                ✓ layout math, renderFrame, background presets, cursor (arrow + click effects)
+    render/                ✓ layout math, renderFrame, background presets, cursor (arrow + click
+                             effects), captions (burned-in, balanced wrapping)
     playback/              ✓ PlaybackController: <video> + skip cuts + speed
     editor/                ✓ EditorStore (undo/redo), actions, recorder→editor handoff,
                              extensionHandoff (receives a .vidz from the extension's ready page)
@@ -80,13 +86,15 @@ src/
     time/                  ✓ clock (epochNow), formatTime
     effects/               ✓ easing, camera (zoom crop), autoZoom (zooms from clicks),
                              cursorTrack (smoothed cursor, press state, idle fade, click marks)
-                             (planned: cursor rendering, click effects)
     export/                ✓ exportVideo (decode → renderFrame → encode → MP4), worker
                              protocol + client (progress, cancel)
     storage/                 OPFS + IndexedDB helpers
-    ai/                      on-device (Whisper) + BYOK provider clients
+    ai/                    ✓ protocol + aiClient (one worker per task), models, transcribe
+                             (Whisper via transformers.js, worker-only), byok/ (providers,
+                             settings in localStorage, prompts + parsers)
   types/                   ✓ DOM type extensions (screen-capture.d.ts)
-  workers/                 ✓ export.worker.ts (planned: thumbnails, whisper)
+  workers/                 ✓ export.worker.ts, ai.worker.ts (silences, transcription)
+                             (planned: thumbnails)
 ```
 
 **State model.** `EditorStore` (`lib/editor/store.ts`) holds the project + UI selection, with
@@ -133,7 +141,9 @@ Cross-Origin-Embedder-Policy: require-corp   (or "credentialless")
 - With static export, `next.config` `headers()` is **unsupported** (Next errors, even in dev).
   Production: set the headers in the static host's config (e.g. a `_headers` file). Local testing:
   serve the built `out/` with a static server that sets them; decide the exact setup in Phase 6.
-- Not needed until Phase 6. Don't enable earlier "just in case".
+- **Decision (Phase 6): not enabled.** Whisper runs fine without it: on WebGPU when available,
+  else single-threaded WASM (slower, but a demo-length clip still takes seconds). Revisit only
+  if transcription speed becomes a real problem.
 
 ## BYOK (bring your own key) AI
 
@@ -144,6 +154,25 @@ Cross-Origin-Embedder-Policy: require-corp   (or "credentialless")
 - **CORS:** some providers block direct browser requests or need a special opt-in header. Check
   each provider before adding it, and note the result in `LEARNINGS.md`. No proxy server.
 - AI is always optional; the editor must work fully without a key.
+- **Supported (CORS preflight checked 2026-10-12, chat + model-list endpoints):** Anthropic
+  (needs `anthropic-dangerous-direct-browser-access: true`), OpenAI, Google Gemini, Groq,
+  OpenRouter, Mistral. Code: `src/lib/ai/byok/`. Keys: `localStorage["vidzart.byok"]`, never in
+  `.vidz` files.
+- Features (from the captions transcript, in output time): title + description, YouTube
+  chapters, summary, caption translation (same timings, new text).
+
+### On-device AI (Phase 6)
+
+- **Captions:** Whisper (`onnx-community/whisper-{tiny,base}_timestamped`, word timestamps) via
+  `@huggingface/transformers` in `ai.worker.ts`. Audio → 16 kHz mono → ≤29 s pieces cut at the
+  quietest moment → words → cues. WebGPU if available, else WASM q8.
+- **Third-party downloads (no user data sent):** the model from the Hugging Face Hub and ONNX
+  Runtime's WASM from jsDelivr (transformers.js's default), both once and then cached by the
+  browser. Self-hosting the runtime would put a 27 MB file in `out/`, over some static hosts'
+  per-file limits; revisit if needed (`env.backends.onnx.wasm.wasmPaths`).
+- **Silences:** loudness per 20 ms window, threshold adapted to the recording (floor ≥ -70 dB
+  + 25 % toward the speech level). Fillers: from word timings; best effort, since Whisper often
+  omits "um"/"uh".
 
 <!-- BEGIN VIDZ SPEC -->
 ## Project file format (`.vidz`)
@@ -352,6 +381,7 @@ pnpm typecheck    # next typegen && tsc --noEmit
 pnpm test         # Vitest unit tests for pure logic (src/**/*.test.ts)
 pnpm test:e2e     # Playwright end-to-end tests in installed Chrome (starts its own dev server on :3100)
 pnpm test:e2e:prod  # same tests against the production static export (built, served on :3200)
+VIDZART_TEST_WHISPER=1 pnpm test:e2e   # also run the on-device captions test (downloads ~40 MB)
 ```
 
 - `typecheck` runs `next typegen` first: globals like `LayoutProps` / `PageProps` live in
@@ -383,7 +413,7 @@ pnpm test:e2e:prod  # same tests against the production static export (built, se
 - [x] **Phase 4 (app side):** Open/save `.vidz` files; receive recordings from the extension
       (`/editor?from=extension` → `postMessage` handoff, only from `chrome-extension://` origins).
 - [x] **Phase 5:** Cursor smoothing and click effects from the event log.
-- [ ] **Phase 6:** AI: in-browser captions, silence/filler removal, then BYOK features.
+- [x] **Phase 6:** AI: in-browser captions, silence/filler removal, then BYOK features.
 - [ ] **Later:** "Buy me a coffee" link.
 
 **Not planned:** accounts/auth, cloud storage, share links, payments, Vidzart-hosted AI.
@@ -391,7 +421,9 @@ pnpm test:e2e:prod  # same tests against the production static export (built, se
 **Current phase:** Phase 4 done (extension records tab + events and hands the `.vidz` to the
 editor) and Phase 5 done (drawn cursor with smoothing that snaps onto clicks, press squeeze,
 hide-when-idle, ripple/pulse click effects; same `renderFrame` for preview and export).
-Next: Phase 6 (AI: on-device captions, silence removal, then BYOK).
+Phase 6 done: on-device captions (edit, style, SRT/VTT), Cut silences, Cut filler words, and
+BYOK writing tools (title, chapters, summary, translation) for 6 providers.
+Next: the deferred items below, then "Later".
 
 **Known export limits:** audio in speed-changed pieces is silent (no time-stretching yet; the UI
 can't create speed segments yet anyway); projects over 4 GB can't be saved as .vidz (no Zip64).

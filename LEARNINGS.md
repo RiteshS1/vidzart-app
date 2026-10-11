@@ -16,6 +16,31 @@ coordinate mapping, encoding, browser/extension quirks). Newest entries at the t
 
 ## Log
 
+### 2026-10-12: Phase 6 (on-device AI and BYOK)
+- **CORS per provider (checked with a preflight, no key needed):**
+  `curl -X OPTIONS <url> -H "Origin: http://localhost:3000" -H "Access-Control-Request-Method: POST"
+  -H "Access-Control-Request-Headers: authorization,content-type"`. All six (Anthropic, OpenAI,
+  Gemini, Groq, OpenRouter, Mistral) allow browser calls; Anthropic additionally needs the
+  `anthropic-dangerous-direct-browser-access: true` header. A preflight only needs the server's
+  CORS config, so you can check before you even have a key.
+- **Digital silence breaks adaptive thresholds.** "Cut silences" cut 1.6 s of a 2.5 s pause:
+  exact zeros (-120 dB) dragged the 10th-percentile noise floor so low that the codec's faint
+  noise in other silent parts counted as sound. Clamping the floor at -70 dB fixed it.
+- **An edit that changes nothing must not create an Undo step.** Re-cutting already-cut
+  silences rebuilt identical trims with new ids, so "Undo" seemed to do nothing. Compare
+  meaningfully (total cut time), not by identity.
+- **Whisper drops filler words.** Trained on cleaned transcripts, it usually writes "um, then
+  open…" as "Then open…". So filler removal from transcripts is best effort, and the UI says so.
+- **Keep heavy libraries out of the main bundle:** importing a constant (the model list) from
+  the module that imports transformers.js would have pulled ~1 MB+ into every page. Constants
+  live in their own module; the worker `import()`s transformers.js only when transcribing.
+- **transformers.js loads ONNX Runtime's WASM from jsDelivr by default** (`wasmPaths`). That's
+  code, not user data, but it's a third party; documented in CLAUDE.md.
+- **Whisper reads ≤30 s at a time.** Cutting blindly every 30 s splits words; cutting at the
+  quietest 20 ms window between 20 s and 29 s almost always lands between words.
+- **`<details open={!key}>` collapses while you type the first character of the key.** Derived
+  state that also changes from user input should be the user's state (`onToggle`), not derived.
+
 ### 2026-10-12: Drawing the cursor ourselves (Phase 5)
 - **Tab capture has no mouse pointer** in the video; Chrome captures the page's pixels, and the
   pointer is drawn by the OS on top. So for extension recordings the editor draws one from
