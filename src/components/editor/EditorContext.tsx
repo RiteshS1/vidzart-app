@@ -2,6 +2,8 @@
 
 import { createContext, useContext, useSyncExternalStore } from "react";
 import type { CursorLookup } from "@/lib/effects/camera";
+import type { CursorTrack } from "@/lib/effects/cursorTrack";
+import type { VidzProject } from "@/lib/project/types";
 import type { EditorState, EditorStore } from "@/lib/editor/store";
 import type { PlaybackController } from "@/lib/playback/PlaybackController";
 import type { TimeMap } from "@/lib/timeline/timeMap";
@@ -14,6 +16,8 @@ export interface EditorContextValue {
   getTimeMap: () => TimeMap;
   /** Cursor position from events.json; undefined for plain videos. */
   cursorAt?: CursorLookup;
+  /** The drawn cursor for the current cursor settings (cached); undefined for plain videos. */
+  getCursorTrack: (project: VidzProject) => CursorTrack | undefined;
 }
 
 export const EditorContext = createContext<EditorContextValue | null>(null);

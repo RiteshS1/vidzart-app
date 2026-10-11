@@ -9,7 +9,7 @@ import { useEditorContext } from "./EditorContext";
 // set up once in an effect: React renders this component a single time and
 // never again, no matter how fast the video plays.
 export function PreviewCanvas() {
-  const { store, controller, video, cursorAt } = useEditorContext();
+  const { store, controller, video, cursorAt, getCursorTrack } = useEditorContext();
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -88,7 +88,7 @@ export function PreviewCanvas() {
             },
           },
           project,
-          { sourceTime: controller.getSourceTime(), cursorAt },
+          { sourceTime: controller.getSourceTime(), cursorAt, cursor: getCursorTrack(project) },
         );
       }
       frame = requestAnimationFrame(loop);
@@ -102,7 +102,7 @@ export function PreviewCanvas() {
       video.removeEventListener("seeked", markDirty);
       video.removeEventListener("loadeddata", markDirty);
     };
-  }, [store, controller, video, cursorAt]);
+  }, [store, controller, video, cursorAt, getCursorTrack]);
 
   return (
     <div ref={containerRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center">

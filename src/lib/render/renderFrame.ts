@@ -1,4 +1,5 @@
-// Draws one composed output frame: background → shadow → rounded video.
+// Draws one composed output frame: background → shadow → rounded video →
+// cursor and click effects.
 //
 // This is THE render function. The preview calls it on every animation frame
 // with a <video> element as the source; the export worker (Phase 3) will call
@@ -9,7 +10,9 @@
 // worker: everything it needs comes in through its arguments.
 
 import { cameraAt, cameraViewport, type CursorLookup } from "@/lib/effects/camera";
+import type { CursorTrack } from "@/lib/effects/cursorTrack";
 import type { Background, VidzProject } from "@/lib/project/types";
+import { drawCursorLayer } from "./cursor";
 import { layoutFrame, type Size } from "./layout";
 
 export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -29,6 +32,8 @@ export interface FrameTiming {
   sourceTime: number;
   /** Cursor position lookup from events.json, for "follow" zooms. */
   cursorAt?: CursorLookup;
+  /** The drawn cursor and click effects; absent for videos without events. */
+  cursor?: CursorTrack;
 }
 
 export function renderFrame(
@@ -83,6 +88,9 @@ export function renderFrame(
       video.width,
       video.height,
     );
+    // Cursor + click effects go on top of the video, inside the same rounded
+    // clip, and through the same camera so they zoom with the page.
+    if (timing.cursor) drawCursorLayer(ctx, timing.cursor, settings, timing.sourceTime, video, crop);
   } else {
     ctx.fillStyle = "#111";
     ctx.fillRect(video.x, video.y, video.width, video.height);

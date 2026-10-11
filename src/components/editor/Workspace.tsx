@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { applyAutoZooms } from "@/lib/editor/actions";
 import { EditorStore } from "@/lib/editor/store";
+import { cursorTrackCache } from "@/lib/effects/cursorTrack";
 import { createCursorLookup } from "@/lib/events/cursor";
 import type { VidzEvents } from "@/lib/events/types";
 import { PlaybackController } from "@/lib/playback/PlaybackController";
@@ -53,7 +54,8 @@ export function Workspace({ session, onClose }: { session: Session; onClose: () 
     const cursorAt = session.events
       ? createCursorLookup(session.events, { offsetMs: session.project.source.eventsOffsetMs ?? 0 })
       : undefined;
-    return { store, video, getTimeMap, cursorAt, controller: new PlaybackController(video, getTimeMap) };
+    const getCursorTrack = cursorTrackCache(session.events);
+    return { store, video, getTimeMap, cursorAt, getCursorTrack, controller: new PlaybackController(video, getTimeMap) };
   }, [store, video, session.events, session.project.source.eventsOffsetMs]);
 
   return (

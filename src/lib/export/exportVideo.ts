@@ -26,6 +26,7 @@ import {
   getFirstEncodableAudioCodec,
   getFirstEncodableVideoCodec,
 } from "mediabunny";
+import { createCursorTrack } from "@/lib/effects/cursorTrack";
 import { createCursorLookup } from "@/lib/events/cursor";
 import type { VidzEvents } from "@/lib/events/types";
 import type { VidzProject } from "@/lib/project/types";
@@ -119,6 +120,13 @@ export async function exportVideo(
     const cursorAt = job.events
       ? createCursorLookup(job.events, { offsetMs: project.source.eventsOffsetMs ?? 0 })
       : undefined;
+    const cursor = job.events
+      ? createCursorTrack(job.events, {
+          smoothing: project.settings.cursor.smoothing,
+          hideWhenIdleMs: project.settings.cursor.hideWhenIdleMs,
+          offsetMs: project.source.eventsOffsetMs ?? 0,
+        })
+      : undefined;
 
     const renderVideo = async () => {
       const frameCount = Math.max(1, Math.round((map.outputDuration / 1000) * options.fps));
@@ -144,7 +152,7 @@ export async function exportVideo(
           size,
           { image: frame, size: { width: frame?.displayWidth ?? project.source.width, height: frame?.displayHeight ?? project.source.height } },
           project,
-          { sourceTime: outputToSource(map, (i / options.fps) * 1000), cursorAt },
+          { sourceTime: outputToSource(map, (i / options.fps) * 1000), cursorAt, cursor },
         );
         // Close decoded frames promptly: they hold GPU/decoder memory, and
         // the decoder stalls if too many are left open.
