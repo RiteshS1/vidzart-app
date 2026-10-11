@@ -11,13 +11,8 @@ import { quietSplitPoints } from "@/lib/audio/chunks";
 import { decodeMono } from "@/lib/audio/decode";
 import { wordsToCues } from "@/lib/captions/cues";
 import type { CaptionCue, CaptionWord } from "@/lib/project/types";
+import { WHISPER_MODELS, type WhisperModel } from "./models";
 
-/** "_timestamped" exports include what's needed for word-level timings. */
-export const WHISPER_MODELS = {
-  tiny: { id: "onnx-community/whisper-tiny_timestamped", label: "Fast", sizeMb: 40 },
-  base: { id: "onnx-community/whisper-base_timestamped", label: "Better", sizeMb: 80 },
-} as const;
-export type WhisperModel = keyof typeof WHISPER_MODELS;
 
 const SAMPLE_RATE = 16_000; // what Whisper was trained on
 

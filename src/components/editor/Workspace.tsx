@@ -193,7 +193,7 @@ function Sidebar({ session }: { session: Session }) {
           <SettingsPanel />
         </div>
         <div hidden={tab !== "ai"}>
-          <AiPanel video={session.video} />
+          <AiPanel video={session.video} name={session.name} />
         </div>
       </div>
     </div>

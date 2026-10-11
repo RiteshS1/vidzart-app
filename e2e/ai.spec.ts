@@ -1,3 +1,5 @@
+import path from "node:path";
+import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
 
 // AI-tab tools. Test media is generated in the browser: a canvas video with
@@ -109,4 +111,80 @@ test("Cut silences explains when a video has no audio", async ({ page }) => {
   await openVideo(page, Buffer.from(video, "base64"));
   await page.getByRole("button", { name: "Cut silences" }).click();
   await expect(page.getByText("This video has no audio track.")).toBeVisible({ timeout: 30_000 });
+});
+
+/** Records a canvas video whose soundtrack is the given WAV file (real time). */
+async function makeVideoFromWav(page: Page, wav: Buffer): Promise<Buffer> {
+  const base64 = await page.evaluate(async (wavBase64) => {
+    const bytes = Uint8Array.from(atob(wavBase64), (c) => c.charCodeAt(0));
+    const audio = new AudioContext();
+    const buffer = await audio.decodeAudioData(bytes.buffer);
+    const source = audio.createBufferSource();
+    source.buffer = buffer;
+    const dest = audio.createMediaStreamDestination();
+    source.connect(dest);
+    const canvas = document.createElement("canvas");
+    canvas.width = 320;
+    canvas.height = 180;
+    const ctx = canvas.getContext("2d")!;
+    const stream = new MediaStream([...canvas.captureStream(30).getVideoTracks(), ...dest.stream.getAudioTracks()]);
+    const recorder = new MediaRecorder(stream, { mimeType: "video/webm;codecs=vp8,opus" });
+    const chunks: Blob[] = [];
+    recorder.ondataavailable = (e) => chunks.push(e.data);
+    const done = new Promise<void>((resolve) => (recorder.onstop = () => resolve()));
+    const timer = setInterval(() => {
+      ctx.fillStyle = `hsl(${(performance.now() / 20) % 360} 60% 45%)`;
+      ctx.fillRect(0, 0, 320, 180);
+    }, 33);
+    recorder.start(250);
+    source.start();
+    await new Promise((r) => setTimeout(r, buffer.duration * 1000 + 300));
+    recorder.stop();
+    await done;
+    clearInterval(timer);
+    await audio.close();
+    const out = new Uint8Array(await new Blob(chunks).arrayBuffer());
+    let binary = "";
+    for (const b of out) binary += String.fromCharCode(b);
+    return btoa(binary);
+  }, wav.toString("base64"));
+  return Buffer.from(base64, "base64");
+}
+
+test.describe("captions (downloads a ~40 MB model; opt-in)", () => {
+  test.skip(!process.env.VIDZART_TEST_WHISPER, "set VIDZART_TEST_WHISPER=1 to run (needs network)");
+  test.setTimeout(300_000);
+
+  test("generates captions on-device, edits one and downloads an SRT", async ({ page }, testInfo) => {
+    await page.goto("/editor");
+    const video = await makeVideoFromWav(page, readFileSync(path.join(__dirname, "fixtures/speech.wav")));
+    await openVideo(page, video);
+
+    await page.getByLabel("Model").selectOption("tiny");
+    await page.getByLabel("Spoken language").selectOption("en");
+    await page.getByRole("button", { name: "Generate captions" }).click();
+    await expect(page.getByText(/^Created \d+ captions/)).toBeVisible({ timeout: 240_000 });
+
+    const texts = await page.getByRole("list", { name: "Caption text" }).locator("textarea").evaluateAll((els) =>
+      els.map((el) => (el as HTMLTextAreaElement).value),
+    );
+    const all = texts.join(" ").toLowerCase();
+    expect(all).toContain("record");
+    expect(all).toContain("editor");
+    // The 2 s pause splits the two sentences into separate cues.
+    expect(texts.length).toBeGreaterThanOrEqual(2);
+
+    // Edit the first caption; it's part of the project now.
+    const first = page.getByRole("list", { name: "Caption text" }).locator("textarea").first();
+    await first.fill("Welcome to Vidzart!");
+
+    const [download] = await Promise.all([
+      page.waitForEvent("download"),
+      page.getByRole("button", { name: "Download .srt" }).click(),
+    ]);
+    expect(download.suggestedFilename()).toBe("talk.srt");
+    const srt = readFileSync(await download.path());
+    expect(srt.toString()).toMatch(/^1\n00:00:0\d,\d{3} --> 00:00:0\d,\d{3}\nWelcome to Vidzart!\n/);
+    testInfo.attach("captions.srt", { body: srt, contentType: "text/plain" });
+  });
 });
