@@ -65,7 +65,8 @@ src/
     editor/                ✓ Editor, Workspace (+ Style/AI sidebar), PreviewCanvas, Transport,
                              Timeline, SettingsPanel, DropZone, EditorContext, useEditorShortcuts,
                              AiPanel (silences, fillers), CaptionsTool, ByokTool, TaskProgress,
-                             RecentProjects (local dashboard), useAutosave
+                             RecentProjects (local dashboard), useAutosave, SegmentLane (zoom/
+                             speed/blur lanes), RangeInspectors (speed, blur, selected switch)
   lib/
     project/               ✓ types (mirror of the spec), defaults, segment helpers
     vidz/                  ✓ zip.ts (dependency-free zip, zero-copy video slices),
@@ -77,7 +78,7 @@ src/
                              time), fillers (um/uh from word timings)
     timeline/              ✓ timeMap: sourceToOutput / outputToSource (trims + speed)
     render/                ✓ layout math, renderFrame, background presets, cursor (arrow + click
-                             effects), captions (burned-in, balanced wrapping)
+                             effects), captions (burned-in, balanced wrapping), blur (boxes)
     playback/              ✓ PlaybackController: <video> + skip cuts + speed
     editor/                ✓ EditorStore (undo/redo), actions, recorder→editor handoff,
                              extensionHandoff (receives a .vidz from the extension's ready page)
@@ -426,12 +427,16 @@ Phase 6 done: on-device captions (edit, style, SRT/VTT), Cut silences, Cut fille
 BYOK writing tools (title, chapters, summary, translation) for 6 providers.
 Next: the deferred items below, then "Later".
 
-**Known export limits:** audio in speed-changed pieces is silent (no time-stretching yet; the UI
-can't create speed segments yet anyway); projects over 4 GB can't be saved as .vidz (no Zip64).
+**Known export limits:** audio in speed-changed pieces is silent (no time-stretching yet; the
+preview mutes them too, so it matches); projects over 4 GB can't be saved as .vidz (no Zip64).
 
 **Autosave (done):** opening a file keeps a copy in IndexedDB (in the background); edits save
 800 ms after the last change and on `pagehide`; `/editor` lists "Recent projects". IndexedDB
 rather than OPFS: it stores Blobs on disk too and needs no extra file handling.
 
+**Speed & blur (done):** timeline lanes (`SegmentLane`) for zoom, speed and blur; inspectors
+above the sidebar tabs. Sped-up parts are muted in preview and export (no time-stretching).
+Blur boxes are normalized source rects drawn through the camera crop with `ctx.filter = blur()`.
+
 **Deferred** (pick up when needed): filmstrip thumbnails on the timeline (worker), custom image
-backgrounds, a UI for speed segments (+ audio time-stretching on export).
+backgrounds, pitch-preserving audio for sped-up parts.
