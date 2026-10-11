@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { listenForExtensionHandoff } from "@/lib/editor/extensionHandoff";
 import { takePendingVideo } from "@/lib/editor/handoff";
 import { probeVideo, type VideoInfo } from "@/lib/media/probe";
 import { probeWithElement } from "@/lib/media/probeWithElement";
@@ -74,6 +75,9 @@ export default function Editor() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
     if (pending) void open(pending);
   }, [open]);
+
+  // Opened by the extension's "Open in editor"? It posts the recording to us.
+  useEffect(() => listenForExtensionHandoff((file) => void open(file)), [open]);
 
   // Free the previous file's object URL whenever the session changes.
   const sessionUrl = session?.url;
