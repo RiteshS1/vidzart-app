@@ -73,7 +73,8 @@ src/
     timeline/              ✓ timeMap: sourceToOutput / outputToSource (trims + speed)
     render/                ✓ layout math, renderFrame, background presets
     playback/              ✓ PlaybackController: <video> + skip cuts + speed
-    editor/                ✓ EditorStore (undo/redo), actions, recorder→editor handoff
+    editor/                ✓ EditorStore (undo/redo), actions, recorder→editor handoff,
+                             extensionHandoff (receives a .vidz from the extension's ready page)
     media/                 ✓ probe (Mediabunny), probeWithElement (fallback)
     recording/             ✓ screenRecorder, mimeType
     time/                  ✓ clock (epochNow), formatTime
@@ -359,16 +360,16 @@ pnpm test:e2e:prod  # same tests against the production static export (built, se
       corners, playback controls, trim, timeline.
 - [x] **Phase 2:** Zoom segments: manual zooms with easing, then auto zooms from `events.json`.
 - [x] **Phase 3:** MP4 export in a Web Worker with WebCodecs.
-- [x] **Phase 4 (app side):** Open/save `.vidz` files (done early, needed for auto zooms).
+- [x] **Phase 4 (app side):** Open/save `.vidz` files; receive recordings from the extension
+      (`/editor?from=extension` → `postMessage` handoff, only from `chrome-extension://` origins).
 - [ ] **Phase 5:** Cursor smoothing and click effects from the event log.
 - [ ] **Phase 6:** AI: in-browser captions, silence/filler removal, then BYOK features.
-- [ ] **Later:** direct handoff from the extension, "Buy me a coffee" link.
+- [ ] **Later:** "Buy me a coffee" link.
 
 **Not planned:** accounts/auth, cloud storage, share links, payments, Vidzart-hosted AI.
 
-**Current phase:** Phase 3 done: Export MP4 dialog (720p–4K, 30/60 fps) rendering in a Web Worker
-with WebCodecs + Mediabunny, audio for kept pieces, progress + cancel. Verified on the production
-build. Next: Phase 4 (extension: record tab + events → .vidz).
+**Current phase:** Phase 4 done (extension records tab + events and hands the `.vidz` to the
+editor). Next: Phase 5 (cursor rendering, smoothing and click effects in `renderFrame`).
 
 **Known export limits:** audio in speed-changed pieces is silent (no time-stretching yet; the UI
 can't create speed segments yet anyway); projects over 4 GB can't be saved as .vidz (no Zip64).
