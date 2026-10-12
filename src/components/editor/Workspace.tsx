@@ -9,6 +9,7 @@ import {
   MousePointer2,
   Palette,
   Sparkles,
+  Type,
 } from "lucide-react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Link from "next/link";
@@ -31,6 +32,7 @@ import { CaptionsTool } from "./CaptionsTool";
 import { SelectedSegmentInspector } from "./RangeInspectors";
 import { CursorPanel, SettingsPanel } from "./SettingsPanel";
 import { button, primaryButton } from "./styles";
+import { TextPanel } from "./TextTools";
 import { Timeline } from "./Timeline";
 import { Transport } from "./Transport";
 import { useAutosave } from "./useAutosave";
@@ -204,7 +206,7 @@ function TopBar({ session, onClose }: { session: Session; onClose: () => void })
   );
 }
 
-type ToolId = "style" | "cursor" | "captions" | "ai";
+type ToolId = "style" | "text" | "cursor" | "captions" | "ai";
 
 function EditorLayout({ value, session }: { value: EditorContextValue; session: Session }) {
   useEditorShortcuts(value);
@@ -243,6 +245,7 @@ function Tools({ session }: { session: Session }) {
   const [tool, setTool] = useState<ToolId>("style");
   const tools: { id: ToolId; label: string; icon: typeof Palette; available: boolean }[] = [
     { id: "style", label: "Style", icon: Palette, available: true },
+    { id: "text", label: "Text", icon: Type, available: true },
     // Only recordings with a click log have a cursor to draw.
     { id: "cursor", label: "Cursor", icon: MousePointer2, available: Boolean(cursorAt) },
     { id: "captions", label: "Captions", icon: CaptionsIcon, available: true },
@@ -282,6 +285,9 @@ function Tools({ session }: { session: Session }) {
       >
         <ToolPanel id="style" active={tool}>
           <SettingsPanel />
+        </ToolPanel>
+        <ToolPanel id="text" active={tool}>
+          <TextPanel />
         </ToolPanel>
         {cursorAt && (
           <ToolPanel id="cursor" active={tool}>

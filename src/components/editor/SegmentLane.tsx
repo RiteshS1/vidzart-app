@@ -5,8 +5,10 @@ import { editSegments } from "@/lib/editor/actions";
 import {
   addBlur,
   addSpeed,
+  addText,
   addZoom,
   blursOf,
+  textsOf,
   freeGap,
   MIN_RANGE_MS,
   MIN_ZOOM_MS,
@@ -14,7 +16,7 @@ import {
   updateSegment,
   zoomsOf,
 } from "@/lib/project/segments";
-import type { BlurSegment, Segment, SpeedSegment, ZoomSegment } from "@/lib/project/types";
+import type { BlurSegment, Segment, SpeedSegment, TextSegment, ZoomSegment } from "@/lib/project/types";
 import { useEditor, useEditorContext } from "./EditorContext";
 
 // One lane of the timeline for one kind of range segment (zoom, speed,
@@ -27,7 +29,7 @@ import { useEditor, useEditorContext } from "./EditorContext";
 // their moves/resizes are clamped to the free gap between neighbors. Blurs
 // may overlap (hiding two things at once), so they move freely.
 
-type RangeSegment = ZoomSegment | SpeedSegment | BlurSegment;
+type RangeSegment = ZoomSegment | SpeedSegment | BlurSegment | TextSegment;
 export type LaneKind = RangeSegment["type"];
 
 interface LaneConfig {
@@ -81,6 +83,18 @@ const LANES: Record<LaneKind, LaneConfig> = {
     colors: ["bg-slate-600/70 hover:bg-slate-600", "bg-slate-600 ring-2 ring-slate-300"],
     seekTo: (s) => (s.start + s.end) / 2,
   },
+  text: {
+    minMs: MIN_RANGE_MS,
+    overlap: true,
+    of: textsOf,
+    add: (s, a, b, d) => addText(s, a, b, d),
+    hint: "Drag here to add text",
+    label: (s) => (s.type === "text" ? s.text.split("\n")[0]! : ""),
+    describe: (s) => (s.type === "text" ? `Text "${s.text.split("\n")[0]}" from ${secs(s.start)} to ${secs(s.end)}` : ""),
+    colors: ["bg-amber-600/80 hover:bg-amber-600", "bg-amber-600 ring-2 ring-amber-300"],
+    // After the in-animation, where the text is fully visible.
+    seekTo: (s) => Math.min(s.start + 500, (s.start + s.end) / 2),
+  },
 };
 
 type Drag =
@@ -109,6 +123,19 @@ export function SegmentLane(props: {
   const segments = useEditor((s) => s.project.segments);
   const selectedId = useEditor((s) => s.selectedSegmentId);
   const items = useMemo(() => lane.of(segments), [lane, segments]);
+  // Lanes that allow overlap (blur, text) stack overlapping blocks in rows,
+  // so none hides another: each item goes in the first row that's free.
+  const rows = useMemo(() => {
+    const ends: number[] = [];
+    const rowOf = new Map<string, number>();
+    for (const item of items) {
+      let row = ends.findIndex((end) => end <= item.start);
+      if (row < 0) row = ends.push(0) - 1;
+      ends[row] = item.end;
+      rowOf.set(item.id, row);
+    }
+    return { rowOf, count: Math.max(1, ends.length) };
+  }, [items]);
   const drag = useRef<Drag | null>(null);
   // The rubber band while creating. Local state is fine here: it only
   // re-renders this lane, and only during a drag.
@@ -199,6 +226,11 @@ export function SegmentLane(props: {
         const selected = item.id === selectedId;
         const place = props.place(item.start, item.end);
         if (!place) return null; // entirely inside a cut: nothing to show
+        const row = rows.rowOf.get(item.id) ?? 0;
+        const vertical =
+          rows.count === 1
+            ? {}
+            : { top: `calc(${(row * 100) / rows.count}% + 2px)`, height: `calc(${100 / rows.count}% - 4px)`, bottom: "auto" };
         return (
           <div
             key={item.id}
@@ -210,7 +242,7 @@ export function SegmentLane(props: {
             className={`group absolute inset-y-1 flex cursor-grab items-center justify-center overflow-hidden rounded-sm text-[10px] font-semibold text-white active:cursor-grabbing ${
               selected ? lane.colors[1] : lane.colors[0]
             }`}
-            style={place}
+            style={{ ...place, ...vertical }}
             // Move/up events from the captured block bubble up to the lane's
             // handlers, so the block only needs pointerdown.
             onPointerDown={(e) => onBlockDown(e, item, "move")}

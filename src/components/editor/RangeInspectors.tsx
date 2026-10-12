@@ -6,6 +6,7 @@ import { removeSegment, SPEED_RATES, updateSegment } from "@/lib/project/segment
 import type { BlurSegment, SpeedSegment } from "@/lib/project/types";
 import { useEditor, useEditorContext } from "./EditorContext";
 import { button, panelLabel } from "./styles";
+import { TextInspector } from "./TextTools";
 import { ZoomInspector } from "./ZoomInspector";
 
 // Side-panel inspectors for the selected speed or blur segment (the zoom
@@ -175,6 +176,12 @@ export function SelectedSegmentInspector() {
       return <SpeedInspector key={selected.id} speed={selected} />;
     case "blur":
       return <BlurInspector key={selected.id} blur={selected} />;
+    case "text":
+      return (
+        <InspectorShell key={selected.id} title="Text" id={selected.id} tone="border-amber-500/40 bg-amber-500/[.05]">
+          <TextInspector text={selected} />
+        </InspectorShell>
+      );
     default:
       return null; // nothing selected, or a cut (restored from the timeline)
   }

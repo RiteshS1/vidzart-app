@@ -4,7 +4,7 @@
 import { findFillers, withoutFillers } from "@/lib/captions/fillers";
 import { generateAutoZooms } from "@/lib/effects/autoZoom";
 import type { VidzEvents } from "@/lib/events/types";
-import { addTrim, addZoom, removeSegment } from "@/lib/project/segments";
+import { addText, addTrim, addZoom, DEFAULT_TEXT_MS, removeSegment, TEXT_PRESETS } from "@/lib/project/segments";
 import type { Segment } from "@/lib/project/types";
 import type { EditOptions, EditorStore } from "./store";
 
@@ -135,4 +135,17 @@ export function removeFillerWords(store: EditorStore): number {
     captions: p.captions && { ...p.captions, cues: withoutFillers(p.captions.cues) },
   }));
   return cuts.length;
+}
+
+/** Adds a text overlay at the playhead from a preset and selects it. */
+export function addTextAt(store: EditorStore, sourceMs: number, preset = TEXT_PRESETS[0]!.segment): string | null {
+  const before = new Set(store.getState().project.segments.map((s) => s.id));
+  editSegments(store, (segments, duration) => {
+    // Near the end there may be less than 3 s left: start earlier instead.
+    const start = Math.max(0, Math.min(sourceMs, duration - DEFAULT_TEXT_MS));
+    return addText(segments, start, start + DEFAULT_TEXT_MS, duration, preset);
+  });
+  const added = store.getState().project.segments.find((s) => !before.has(s.id));
+  if (added) store.setUi({ selectedSegmentId: added.id, range: null });
+  return added?.id ?? null;
 }

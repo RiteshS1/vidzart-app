@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftToLine, ArrowRightToLine, EyeOff, Film, Gauge, Minus, Plus, Redo2, Scissors, Undo2, ZoomIn } from "lucide-react";
+import { ArrowLeftToLine, ArrowRightToLine, EyeOff, Film, Gauge, Minus, Plus, Redo2, Scissors, Type, Undo2, ZoomIn } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { runAiTask } from "@/lib/ai/aiClient";
 import { addZoomAt, cutSelectedRange, editSegments, trimEndFrom, trimStartTo } from "@/lib/editor/actions";
@@ -247,6 +247,7 @@ export function Timeline({ source }: { source: Blob }) {
         <LaneLabel icon={ZoomIn}>Zoom</LaneLabel>
         <LaneLabel icon={Gauge}>Speed</LaneLabel>
         <LaneLabel icon={EyeOff}>Blur</LaneLabel>
+        <LaneLabel icon={Type}>Text</LaneLabel>
       </div>
       <div ref={scrollRef} className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-2 pb-1" data-testid="timeline-scroll">
         <div ref={contentRef} className="relative flex flex-col gap-1" style={{ width: width || "100%" }}>
@@ -306,6 +307,7 @@ export function Timeline({ source }: { source: Blob }) {
           <SegmentLane kind="zoom" toMs={toSource} place={place} duration={duration} />
           <SegmentLane kind="speed" toMs={toSource} place={place} duration={duration} />
           <SegmentLane kind="blur" toMs={toSource} place={place} duration={duration} />
+          <SegmentLane kind="text" toMs={toSource} place={place} duration={duration} />
 
           {/* playhead: line across everything, with a handle on the ruler to drag */}
           <div

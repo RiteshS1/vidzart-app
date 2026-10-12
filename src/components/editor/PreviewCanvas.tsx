@@ -1,9 +1,13 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { editSegments } from "@/lib/editor/actions";
+import { updateSegment } from "@/lib/project/segments";
+import type { TextSegment } from "@/lib/project/types";
 import { outputAspect } from "@/lib/render/layout";
 import { renderFrame } from "@/lib/render/renderFrame";
-import { useEditorContext } from "./EditorContext";
+import { layoutText } from "@/lib/render/text";
+import { useEditor, useEditorContext } from "./EditorContext";
 
 // The live preview. Everything here runs in one requestAnimationFrame loop
 // set up once in an effect: React renders this component a single time and
@@ -106,12 +110,76 @@ export function PreviewCanvas() {
 
   return (
     <div ref={containerRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
-      <canvas
-        ref={canvasRef}
-        data-testid="preview-canvas"
-        className="rounded-md shadow-sm"
-        onClick={() => controller.toggle()}
-      />
+      {/* The wrapper is exactly the canvas's size, so overlays line up with it. */}
+      <div className="relative">
+        <canvas
+          ref={canvasRef}
+          data-testid="preview-canvas"
+          className="block rounded-md shadow-2xl shadow-black/50"
+          onClick={() => controller.toggle()}
+        />
+        <TextHandle canvasRef={canvasRef} />
+      </div>
     </div>
   );
+}
+
+/**
+ * When a text overlay is selected, a dashed box around it on the preview:
+ * drag it to move the text. The box comes from the same layout code that
+ * draws the text (layoutText), so it fits exactly.
+ */
+function TextHandle({ canvasRef }: { canvasRef: React.RefObject<HTMLCanvasElement | null> }) {
+  const { store } = useEditorContext();
+  const selected = useEditor((s) => s.project.segments.find((x) => x.id === s.selectedSegmentId) ?? null);
+  // Re-measure when the canvas is resized (human-speed: window resizes).
+  const [size, setSize] = useState({ width: 0, height: 0, cssWidth: 0, cssHeight: 0 });
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const update = () =>
+      setSize({ width: canvas.width, height: canvas.height, cssWidth: canvas.clientWidth, cssHeight: canvas.clientHeight });
+    const observer = new ResizeObserver(update);
+    observer.observe(canvas);
+    return () => observer.disconnect();
+  }, [canvasRef]);
+  const drag = useRef<{ x: number; y: number; px: number; py: number; key: string } | null>(null);
+
+  if (selected?.type !== "text" || size.width === 0) return null;
+  const text = selected;
+  const layout = layoutText(scratchContext(), text, size);
+  const k = size.cssWidth / size.width; // canvas px → CSS px
+  const box = layout.box;
+
+  return (
+    <div
+      data-testid="text-handle"
+      aria-label="Drag to move the text"
+      className="absolute cursor-move rounded-sm border-2 border-dashed border-amber-400 touch-none"
+      style={{ left: box.x * k - 4, top: box.y * k - 4, width: box.width * k + 8, height: box.height * k + 8 }}
+      onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId);
+        drag.current = { x: text.x, y: text.y, px: e.clientX, py: e.clientY, key: `text-move-${text.id}-${e.timeStamp}` };
+      }}
+      onPointerMove={(e) => {
+        const d = drag.current;
+        if (!d) return;
+        const x = Math.min(1, Math.max(0, d.x + (e.clientX - d.px) / size.cssWidth));
+        const y = Math.min(1, Math.max(0, d.y + (e.clientY - d.py) / size.cssHeight));
+        // The whole drag is one undo step.
+        editSegments(store, (s) => updateSegment<TextSegment>(s, text.id, { x, y }), { coalesceKey: d.key });
+      }}
+      onPointerUp={() => {
+        drag.current = null;
+      }}
+    />
+  );
+}
+
+let scratch: CanvasRenderingContext2D | null = null;
+/** A 2D context just for measuring text. */
+function scratchContext(): CanvasRenderingContext2D {
+  scratch ??= document.createElement("canvas").getContext("2d")!;
+  return scratch;
 }
