@@ -19,6 +19,8 @@ import type { TimeMap } from "@/lib/timeline/timeMap";
 
 export const MIX_RATE = 48_000;
 const BLOCK_MS = 1000;
+/** A chunk stamped further than this from where it should continue is a real gap/jump. */
+const RESYNC_MS = 25;
 
 export interface MixJob {
   map: TimeMap;
@@ -40,6 +42,21 @@ export async function mixAudio(job: MixJob): Promise<void> {
   let pieceIndex = 0;
   let iterator: AsyncIterator<AudioSample> | null = null;
   let pending: AudioSample | null = null; // a decoded chunk that reaches into the next block
+  let pendingStart = 0; // its placed start, source ms (see placeChunk)
+  // Where the next chunk of the current piece should start if the audio is
+  // contiguous. Chunk timestamps in a MediaRecorder WebM are rounded to whole
+  // milliseconds, so two neighbouring 20 ms Opus packets can be stamped a
+  // fraction of a ms off from their true length. Placing each chunk by its own
+  // timestamp then overlapped or gapped them by a few samples: an audible tick
+  // that showed up only sometimes. Placing them back to back by frame count
+  // is exact; the stamp only matters to re-sync after a real gap.
+  let expectedMs: number | null = null;
+  const placeChunk = (sample: AudioSample): number => {
+    const stamp = sample.timestamp * 1000;
+    const start = expectedMs !== null && Math.abs(stamp - expectedMs) <= RESYNC_MS ? expectedMs : stamp;
+    expectedMs = start + (sample.numberOfFrames * 1000) / sample.sampleRate;
+    return start;
+  };
 
   for (let o0 = 0; o0 < map.outputDuration; o0 += BLOCK_MS) {
     if (job.signal.aborted) await job.onAbort();
@@ -61,13 +78,22 @@ export async function mixAudio(job: MixJob): Promise<void> {
       const s1 = Math.min(o1, piece.outputEnd) - shift;
       let reachesNextBlock = false;
       for (;;) {
-        const sample: AudioSample | undefined = pending ?? (await iterator.next()).value;
-        pending = null;
-        if (!sample) break; // piece fully decoded
-        if (s1 > s0) addSource(sample, shift, s0, s1, o0, left, right, job.sourceVolume);
-        const sampleEnd = sample.timestamp * 1000 + (sample.numberOfFrames * 1000) / sample.sampleRate;
+        let sample: AudioSample | undefined;
+        let chunkStart: number;
+        if (pending) {
+          sample = pending;
+          chunkStart = pendingStart;
+          pending = null;
+        } else {
+          sample = (await iterator.next()).value;
+          if (!sample) break; // piece fully decoded
+          chunkStart = placeChunk(sample);
+        }
+        if (s1 > s0) addSource(sample, chunkStart, shift, s0, s1, o0, left, right, job.sourceVolume);
+        const sampleEnd = chunkStart + (sample.numberOfFrames * 1000) / sample.sampleRate;
         if (sampleEnd > s1 && piece.outputEnd > o1) {
           pending = sample; // the rest of it belongs to the next block
+          pendingStart = chunkStart;
           reachesNextBlock = true;
           break;
         }
@@ -79,6 +105,7 @@ export async function mixAudio(job: MixJob): Promise<void> {
       pending = null;
       await iterator.return?.();
       iterator = null;
+      expectedMs = null; // the next piece starts fresh
       pieceIndex++;
     }
 
@@ -117,11 +144,13 @@ export async function mixAudio(job: MixJob): Promise<void> {
 
 /**
  * Adds the part of a decoded source chunk inside [s0, s1) (source ms) to the
- * block, shifted by `shift` (output = source + shift) and resampled to the
+ * block. `chunkStart` is where the chunk was placed (not its raw timestamp, see
+ * placeChunk), shifted by `shift` (output = source + shift) and resampled to the
  * mix rate by linear interpolation.
  */
 function addSource(
   sample: AudioSample,
+  chunkStart: number,
   shift: number,
   s0: number,
   s1: number,
@@ -137,7 +166,6 @@ function addSource(
   sample.copyTo(l, { planeIndex: 0, format: "f32-planar" });
   if (sample.numberOfChannels > 1) sample.copyTo(r, { planeIndex: 1, format: "f32-planar" });
   else r.set(l);
-  const chunkStart = sample.timestamp * 1000;
   const chunkEnd = chunkStart + (n * 1000) / sr;
   // Output frames this chunk covers (clipped to the piece and the block).
   const from = Math.max(s0, chunkStart) + shift;

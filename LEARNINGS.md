@@ -279,3 +279,16 @@ coordinate mapping, encoding, browser/extension quirks). Newest entries at the t
   check whether it's code-generated.
 - **Links:** `node_modules/next/dist/docs/01-app/02-guides/static-exports.md`,
   `.../05-config/01-next-config-js/cacheComponents.md`
+
+## WebM chunk timestamps are rounded to milliseconds: place audio by frame count (2026-10-14)
+
+A flaky "click" test (about 1 run in 3) turned out to be a real bug in the audio mixer. A
+MediaRecorder WebM stores each Opus packet's timestamp rounded to a whole millisecond, so two
+neighbouring 20 ms packets can be stamped a fraction of a ms away from their true spacing. The
+mixer placed every decoded chunk by its own timestamp, so neighbours overlapped (samples added
+twice) or left a gap (zeros): a burst of ~7 samples (0.15 ms) = an audible tick, at a random spot.
+
+Fix: place chunks back to back by cumulative frame count and use the timestamp only to re-sync
+after a real gap (> 25 ms). Checked by decoding the *source* file for the same jump first, which
+was clean in 8/8 runs, so the defect was in our export, not in the test's generated input.
+Lesson: when a media test is flaky, decode the input separately before blaming the test.
