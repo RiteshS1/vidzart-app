@@ -32,7 +32,7 @@ import type { VidzEvents } from "@/lib/events/types";
 import type { VidzProject } from "@/lib/project/types";
 import { outputAspect, outputSize } from "@/lib/render/layout";
 import { renderFrame } from "@/lib/render/renderFrame";
-import { buildTimeMap, outputToSource } from "@/lib/timeline/timeMap";
+import { buildTimeMap, cutPoints, outputToSource } from "@/lib/timeline/timeMap";
 
 export interface ExportOptions {
   /** Length of the output's longer side in pixels, e.g. 1920 for 1080p 16:9. */
@@ -128,6 +128,7 @@ export async function exportVideo(
         })
       : undefined;
 
+    const cuts = cutPoints(map);
     const renderVideo = async () => {
       const frameCount = Math.max(1, Math.round((map.outputDuration / 1000) * options.fps));
       const sourceTimes = (function* () {
@@ -152,7 +153,12 @@ export async function exportVideo(
           size,
           { image: frame, size: { width: frame?.displayWidth ?? project.source.width, height: frame?.displayHeight ?? project.source.height } },
           project,
-          { sourceTime: outputToSource(map, (i / options.fps) * 1000), cursorAt, cursor },
+          {
+            sourceTime: outputToSource(map, (i / options.fps) * 1000),
+            cursorAt,
+            cursor,
+            output: { time: (i / options.fps) * 1000, duration: map.outputDuration, cuts },
+          },
         );
         // Close decoded frames promptly: they hold GPU/decoder memory, and
         // the decoder stalls if too many are left open.

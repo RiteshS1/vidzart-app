@@ -1,6 +1,6 @@
 // Draws one composed output frame: background → shadow → rounded video →
 // blur boxes → shapes → cursor and click effects → shortcut badges → text
-// overlays → captions.
+// overlays → captions → fades/transitions (black over everything).
 //
 // This is THE render function. The preview calls it on every animation frame
 // with a <video> element as the source; the export worker (Phase 3) will call
@@ -10,11 +10,12 @@
 // It must stay free of React, DOM lookups and globals so it can run in a
 // worker: everything it needs comes in through its arguments.
 
-import { cameraAt, cameraViewport, type CursorLookup } from "@/lib/effects/camera";
+import { cameraAt, cameraViewport, clampCenter, type CursorLookup } from "@/lib/effects/camera";
 import type { CursorTrack } from "@/lib/effects/cursorTrack";
 import type { Background, VidzProject } from "@/lib/project/types";
 import { drawBlurs } from "./blur";
 import { drawCaption } from "./captions";
+import { fadeVisibility, filterCss, transitionAmount } from "./effects";
 import { drawCursorLayer } from "./cursor";
 import { drawKeystrokes } from "./keystrokes";
 import { layoutFrame, type Size } from "./layout";
@@ -40,6 +41,12 @@ export interface FrameTiming {
   cursorAt?: CursorLookup;
   /** The drawn cursor and click effects; absent for videos without events. */
   cursor?: CursorTrack;
+  /**
+   * Output time (after cuts/speed), its total, and the output moments of
+   * cuts: fades and transitions happen in the edited video's time. Absent
+   * = no fades/transitions (e.g. in thumbnails).
+   */
+  output?: { time: number; duration: number; cuts: readonly number[] };
 }
 
 export function renderFrame(
@@ -77,12 +84,26 @@ export function renderFrame(
   ctx.beginPath();
   ctx.roundRect(video.x, video.y, video.width, video.height, cornerRadius);
   ctx.clip();
+  const transition = timing.output
+    ? transitionAmount(settings.transition, timing.output.cuts, timing.output.time)
+    : 0;
   if (frame.image) {
     // The camera picks which part of the source is visible (zooms). We draw
     // only that crop, stretched over the whole video rect.
-    const camera = cameraAt(project.segments, timing.sourceTime, timing.cursorAt);
+    let camera = cameraAt(project.segments, timing.sourceTime, timing.cursorAt);
+    if (transition > 0 && settings.transition?.type === "zoom-punch") {
+      // A quick push-in that peaks right at the cut and hides the jump.
+      const scale = camera.scale * (1 + 0.18 * transition);
+      camera = { scale, center: clampCenter(camera.center, scale) };
+    }
     const crop = cameraViewport(camera);
     ctx.imageSmoothingQuality = "high";
+    // Color look (+ a blur peaking on cuts) applies to the video only, not
+    // the background around it.
+    const blurPx = settings.transition?.type === "blur" ? transition * unit * 0.025 : 0;
+    const look = filterCss(settings.filter);
+    const filters = [look === "none" ? "" : look, blurPx > 0.3 ? `blur(${blurPx.toFixed(1)}px)` : ""].filter(Boolean).join(" ");
+    if (filters) ctx.filter = filters;
     ctx.drawImage(
       frame.image,
       crop.x * frame.size.width,
@@ -94,6 +115,7 @@ export function renderFrame(
       video.width,
       video.height,
     );
+    ctx.filter = "none";
     // Blur boxes hide parts of the recording; they're under the cursor, so
     // the cursor stays visible while moving over a hidden area.
     drawBlurs(ctx, frame.image, frame.size, project.segments, timing.sourceTime, video, crop);
@@ -116,6 +138,18 @@ export function renderFrame(
 
   // Captions sit on top of everything and don't zoom with the camera.
   if (project.captions) drawCaption(ctx, project.captions, timing.sourceTime, video, unit);
+
+  // Fade from/to black at the ends, and the dip-to-black transition at cuts:
+  // black over the whole frame, so they work like a film edit.
+  if (timing.output) {
+    const visible = fadeVisibility(settings.fade, timing.output.time, timing.output.duration);
+    const dip = settings.transition?.type === "dip-to-black" ? transition : 0;
+    const black = 1 - visible * (1 - dip);
+    if (black > 0.001) {
+      ctx.fillStyle = `rgba(0, 0, 0, ${black})`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  }
 
   ctx.restore();
 }

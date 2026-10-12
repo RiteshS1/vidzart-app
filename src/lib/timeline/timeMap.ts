@@ -112,3 +112,16 @@ export function nextKeptSource(map: TimeMap, sourceTime: number): number | null 
   }
   return null;
 }
+
+/**
+ * Output moments where trimmed footage was removed: between two kept pieces
+ * whose source ranges don't touch. (Speed changes also split pieces, but
+ * those join seamlessly, so they aren't cuts.)
+ */
+export function cutPoints(map: TimeMap): number[] {
+  const points: number[] = [];
+  for (let i = 1; i < map.pieces.length; i++) {
+    if (map.pieces[i]!.sourceStart > map.pieces[i - 1]!.sourceEnd + 0.5) points.push(map.pieces[i]!.outputStart);
+  }
+  return points;
+}

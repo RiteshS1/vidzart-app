@@ -21,7 +21,16 @@ export interface ProjectSettings {
   clickEffect: { type: "none" | "ripple" | "pulse"; color: string };
   /** "⌘K"-style badges from the key events in events.json; absent = hidden. */
   keystrokes?: { visible: boolean; position: "bottom" | "top" };
+  /** A color look for the video; intensity 0–1. Absent = none. */
+  filter?: { preset: FilterPreset; intensity: number };
+  /** Fade from/to black at the start/end of the output. */
+  fade?: { inMs: number; outMs: number };
+  /** An effect centered on every cut (where trimmed footage was removed). */
+  transition?: { type: TransitionType; durationMs: number };
 }
+
+export type FilterPreset = "none" | "vivid" | "warm" | "cool" | "mono" | "cinematic";
+export type TransitionType = "none" | "dip-to-black" | "blur" | "zoom-punch";
 
 export interface ZoomSegment {
   id: string;
