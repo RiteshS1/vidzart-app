@@ -77,7 +77,7 @@ export function ProjectsDashboard() {
       </div>
 
       <div className="mt-8 grid gap-3 sm:grid-cols-3">
-        <StartTile href="/editor" icon={FolderOpen} title="Open a video or .vidz" text="Edit any recording you already have." />
+        <StartTile href="/editor" icon={FolderOpen} title="Open a video" text="Edit any recording you already have." />
         <StartTile href="/record" icon={Video} title="Record your screen" text="Quick screen, window or tab recording." />
         <StartTile href="/#install" icon={Puzzle} title="Record with the extension" text="Adds automatic zooms on your clicks." />
       </div>

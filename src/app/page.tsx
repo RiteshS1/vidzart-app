@@ -58,7 +58,7 @@ const TAKES = [
     icon: Film,
     title: "Export, up to 4K",
     text: "Rendered in your browser with WebCodecs at 30 or 60 fps. The preview and the export run the same renderer: what you see is what you get.",
-    spec: "h.264 mp4 · 720p–4k · 30/60 fps",
+    spec: "mp4 · mov · webm · 720p–4k · 30/60 fps",
   },
 ];
 
@@ -67,7 +67,7 @@ const MARQUEE = ["Auto zoom", "Smooth cursor", "Click ripples", "Captions", "Tex
 const STEPS = [
   { title: "Record", text: "Open any tab, click the Vidzart icon, press Record. Clicks and cursor are tracked; your typing never is." },
   { title: "Polish", text: "The editor opens with zooms in place. Trim, add text, music and captions. It autosaves as you go." },
-  { title: "Export", text: "Download an MP4 (and subtitles), or a .vidz project to pick up later." },
+  { title: "Export", text: "Download an MP4, MOV or WebM (and subtitles). Your project is saved in this browser to pick up later." },
 ];
 
 export default function Home() {

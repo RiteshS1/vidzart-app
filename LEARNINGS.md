@@ -292,3 +292,15 @@ Fix: place chunks back to back by cumulative frame count and use the timestamp o
 after a real gap (> 25 ms). Checked by decoding the *source* file for the same jump first, which
 was clean in 8/8 runs, so the defect was in our export, not in the test's generated input.
 Lesson: when a media test is flaky, decode the input separately before blaming the test.
+
+## One column on phones: the panel and the timeline share a slot (2026-10-14)
+
+The editor used to be `flex-col lg:flex-row` with a `shrink-0` timeline and a `shrink-0` tool
+panel under the preview. On a phone neither could give space back, so they overflowed the
+`100dvh` column and drew on top of each other (and in landscape the timeline covered the preview).
+What worked: below `md`, show the timeline OR the tool sheet (never both), cap the lanes' height
+with `max-h-[max(30dvh,7rem)]`, and let the preview be the only `flex-1` item. From `md` up a CSS
+grid keeps the desktop arrangement. Menus anchored to a trigger near the screen edge need a
+measure-and-shift step (`Menu.tsx`) or they open partly off-screen.
+Test it with a touch context at 390x844 and 844x390; the "does the page scroll sideways" check
+alone passes even when controls overlap, so also assert that key controls sit inside the viewport.

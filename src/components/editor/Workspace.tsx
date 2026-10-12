@@ -384,7 +384,7 @@ function EditorLayout({ value, session }: { value: EditorContextValue; session: 
     // Respect the OS "reduce motion" setting for every Motion animation below.
     <MotionConfig reducedMotion="user">
       <div className="flex min-h-0 flex-1 flex-col md:grid md:grid-cols-[minmax(0,1fr)_auto] md:grid-rows-[minmax(0,1fr)_auto]">
-        <main className="flex min-h-[120px] min-w-0 flex-1 flex-col bg-bg md:col-start-1 md:row-start-1">
+        <main id="main" className="flex min-h-[120px] min-w-0 flex-1 flex-col bg-bg md:col-start-1 md:row-start-1">
           <div className="flex min-h-0 flex-1 p-2 md:p-4 lg:p-6">
             <PreviewCanvas />
           </div>

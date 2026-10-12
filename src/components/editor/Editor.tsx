@@ -1,5 +1,6 @@
 "use client";
 
+import { Puzzle, Video } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -14,6 +15,24 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { DropZone } from "./DropZone";
 import { RecentProjects } from "./RecentProjects";
 import { Workspace, type Session } from "./Workspace";
+
+function StartLink(props: { href: string; icon: typeof Video; title: string; text: string }) {
+  const Icon = props.icon;
+  return (
+    <Link
+      href={props.href}
+      className="flex items-start gap-3 rounded-xl border border-line bg-surface p-4 transition-colors duration-150 hover:border-line-strong hover:bg-surface-2"
+    >
+      <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-surface-3" aria-hidden>
+        <Icon className="size-5 text-accent" />
+      </span>
+      <span>
+        <span className="block text-sm font-semibold">{props.title}</span>
+        <span className="block text-xs text-ink-muted">{props.text}</span>
+      </span>
+    </Link>
+  );
+}
 
 const isVidz = (file: File) => file.name.toLowerCase().endsWith(".vidz") || file.type === "application/zip";
 
@@ -185,8 +204,13 @@ export default function Editor() {
       ) : (
         <>
           <SiteHeader />
-          <main className="flex flex-1 flex-col items-center justify-center gap-8 overflow-y-auto p-6">
+          <main id="main" className="flex flex-1 flex-col items-center justify-center gap-8 overflow-y-auto p-6">
             <DropZone onFile={open} error={error} busy={busy} />
+            {/* Not just "give me a file": the other ways to get a recording in. */}
+            <nav aria-label="Other ways to start" className="grid w-full max-w-2xl gap-3 sm:grid-cols-2">
+              <StartLink href="/record" icon={Video} title="Record your screen" text="A screen, window or tab, right in the browser." />
+              <StartLink href="/#install" icon={Puzzle} title="Record with the extension" text="Adds automatic zooms that follow your clicks." />
+            </nav>
             <RecentProjects onOpen={(id) => void openStored(id)} />
             <Link href="/projects" className="text-sm text-ink-muted underline-offset-4 hover:text-ink hover:underline">
               All projects →

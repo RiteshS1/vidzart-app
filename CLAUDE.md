@@ -115,6 +115,24 @@ freshly built objects. Edits go through `store.edit(recipe)` and never mutate (o
 the undo history). Playback time lives only in the `<video>` element, read via
 `PlaybackController.getOutputTime()` / `getSourceTime()`.
 
+### AI is built but locked ("Coming soon")
+
+All AI features (silence/filler removal, BYOK writing tools, on-device caption *generation*) are
+implemented and tested, but visitors see them disabled with a "COMING SOON" hover and badge
+(`components/editor/ComingSoon.tsx`, one switch in `lib/features.ts`). Uploading, editing and
+styling captions is **not** AI and stays open. Nothing AI is downloaded or started while locked.
+To open it up: set `AI_LAUNCHED = true`. To test in one browser:
+`localStorage.setItem("vidzart.unlockAi", "1")` (the AI e2e specs do this in `beforeEach`).
+BYOK never edits video: it sends transcript text only and gets text back.
+
+### Responsive editor
+
+Below `md` (768px) the editor is one column: preview, transport, then the timeline **or** the open
+tool's bottom sheet (they share the space), then the tool bar. From `md` up it's a grid
+(preview | panel+rail, timeline underneath). Timeline lanes are height-capped
+(`max-h-[max(30dvh,7rem)]`) so a short landscape screen can't push the preview away. Controls are
+44px on touch (`styles.ts`). `e2e/mobile.spec.ts` guards this (390×844 and 844×390).
+
 ### Key design decisions
 
 - **Editor is client-only.** Browser media APIs don't exist during prerendering. The editor page
