@@ -1,288 +1,326 @@
 import {
+  ArrowRight,
   Captions,
   Download,
   Film,
-  FolderClock,
   KeyRound,
   Lock,
   MousePointerClick,
   Music,
   Puzzle,
-  Scissors,
-  Sparkles,
   Type,
-  Wand2,
   ZoomIn,
 } from "lucide-react";
-import Link from "next/link";
 import { HeroDemo } from "@/components/landing/HeroDemo";
-import { MotionRoot, Reveal } from "@/components/landing/Reveal";
+import { LandingScene } from "@/components/landing/LandingScene";
+import { MotionLink } from "@/components/landing/MotionLink";
+import { Timecode } from "@/components/landing/Timecode";
 import { LINKS, SiteFooter, SiteHeader } from "@/components/site/SiteHeader";
 
-// The landing page. Static HTML (a server component), with two client
-// islands: the live demo (the real renderer) and scroll reveals.
+// The landing page: static HTML (a server component) with client islands
+// for the live demo, the timecode and the GSAP/Motion animations
+// (LandingScene reads the data-* attributes below).
 
-const FEATURES = [
+const TAKES = [
   {
     icon: ZoomIn,
-    title: "Zooms that follow your clicks",
-    text: "Recordings from the extension open already zoomed in on every click, and the camera glides with your cursor.",
-    wide: true,
+    title: "Every click, framed",
+    text: "Recordings from the extension open already zoomed in on each click. The camera glides after your cursor with a dead zone, so it never shakes.",
+    spec: "auto zoom · follow camera · spring easing",
   },
   {
     icon: MousePointerClick,
-    title: "A calm, smooth cursor",
-    text: "Shaky mouse paths become deliberate motion, landing exactly on each click with a ripple.",
+    title: "A calm, deliberate cursor",
+    text: "Your real mouse path, smoothed. It still lands exactly on every click, with a ripple so viewers see what happened.",
+    spec: "smoothing · click effects · ⌘K badges",
   },
   {
     icon: Captions,
-    title: "Captions on your device",
-    text: "Whisper runs in your browser. Edit, style and burn them in, or export SRT/VTT.",
+    title: "Captions without the cloud",
+    text: "Whisper runs inside your browser. Edit the words, burn them in, or export SRT and VTT. Cut silences and “um”s in a click.",
+    spec: "on-device whisper · srt / vtt",
   },
   {
     icon: Type,
-    title: "Text, arrows & spotlights",
-    text: "Titles, callouts and lower thirds with animations; arrows and spotlights that stick to the content.",
-  },
-  {
-    icon: Scissors,
-    title: "Cut like an editor",
-    text: "Select and cut, speed up the boring parts, remove silences and “um”s in one click.",
-  },
-  {
-    icon: Wand2,
-    title: "Looks & transitions",
-    text: "Backgrounds, color looks, fades and transitions at every cut.",
-  },
-  {
-    icon: FolderClock,
-    title: "Autosaved projects",
-    text: "Every edit is kept in your browser. Pick up any project from your dashboard.",
+    title: "Titles, arrows, spotlights",
+    text: "Animated text and lower thirds that stay put, and arrows, boxes and spotlights that stick to the content while the camera moves.",
+    spec: "text · shapes · blur boxes",
   },
   {
     icon: Music,
-    title: "Music that ducks under your voice",
-    text: "Add a track; it loops, fades and gets quieter whenever you talk.",
-    wide: true,
+    title: "Sound that sits right",
+    text: "Add a music bed that loops, fades and dips under your voice automatically. Keep, lower or mute the recording's own audio.",
+    spec: "music · ducking · fades",
   },
   {
     icon: Film,
-    title: "Export MP4 up to 4K",
-    text: "Rendered in your browser with WebCodecs, at 30 or 60 fps. What you preview is what you get.",
-    wide: true,
+    title: "Export, up to 4K",
+    text: "Rendered in your browser with WebCodecs at 30 or 60 fps. The preview and the export run the same renderer: what you see is what you get.",
+    spec: "h.264 mp4 · 720p–4k · 30/60 fps",
   },
 ];
 
+const MARQUEE = ["Auto zoom", "Smooth cursor", "Click ripples", "Captions", "Text & titles", "Spotlights", "Music ducking", "Cut silences", "4K export", "No uploads"];
+
 const STEPS = [
-  { title: "Record", text: "Click the Vidzart icon on any tab and press Record. Your clicks and cursor are tracked; your typing never is." },
-  { title: "Polish", text: "The editor opens with zooms already in place. Trim, add text, music and captions. It autosaves in your browser." },
-  { title: "Export", text: "Download an MP4 and subtitles, or a .vidz project file to continue later." },
+  { title: "Record", text: "Open any tab, click the Vidzart icon, press Record. Clicks and cursor are tracked; your typing never is." },
+  { title: "Polish", text: "The editor opens with zooms in place. Trim, add text, music and captions. It autosaves as you go." },
+  { title: "Export", text: "Download an MP4 (and subtitles), or a .vidz project to pick up later." },
 ];
 
 export default function Home() {
   return (
-    <MotionRoot>
+    <LandingScene>
+      <noscript>
+        <style>{`.landing [data-split],.landing [data-reveal]{opacity:1!important}`}</style>
+      </noscript>
       <SiteHeader />
       <main className="flex-1 overflow-x-clip">
         {/* Hero */}
-        <section className="relative">
-          {/* Soft brand glow behind the hero. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 -top-40 mx-auto h-[520px] max-w-4xl rounded-full opacity-30 blur-3xl"
-            style={{ background: "radial-gradient(closest-side, var(--accent), transparent), radial-gradient(closest-side, var(--accent-2), transparent)" }}
-          />
-          <div className="relative mx-auto flex max-w-6xl flex-col items-center gap-6 px-4 pt-16 pb-12 text-center sm:px-6 sm:pt-24">
-            <Reveal>
-              <span className="rounded-full border border-line bg-surface px-3 py-1 font-mono text-xs text-ink-muted">
-                free · open source · runs in your browser
-              </span>
-            </Reveal>
-            <Reveal delay={0.05}>
-              <h1 className="max-w-4xl text-4xl leading-[1.05] font-bold tracking-tight text-balance sm:text-6xl lg:text-7xl">
-                Screen recordings that <span className="text-brand">edit themselves</span>
-              </h1>
-            </Reveal>
-            <Reveal delay={0.1}>
-              <p className="max-w-2xl text-lg text-pretty text-ink-muted">
-                Record a tab and Vidzart zooms in on every click, smooths your cursor and frames it beautifully. Add captions,
-                text and music, then export. Your videos never leave your computer.
-              </p>
-            </Reveal>
-            <Reveal delay={0.15} className="flex flex-wrap justify-center gap-3">
-              <Link
-                href="/editor"
-                className="bg-brand inline-flex h-11 items-center gap-2 rounded-xl px-5 font-semibold text-white shadow-[0_0_32px_-8px_var(--accent)] hover:brightness-110"
-              >
-                <Sparkles className="size-4" aria-hidden /> Open the editor
-              </Link>
-              <a
+        <section className="mx-auto max-w-6xl px-4 pt-14 pb-10 sm:px-6 sm:pt-24">
+          <div data-reveal className="flex flex-wrap items-center gap-3 font-mono text-xs text-ink-muted">
+            <span className="flex items-center gap-1.5 rounded-sm border border-line px-2 py-1 text-ink">
+              <span className="tally size-2 rounded-full bg-record" aria-hidden /> REC <Timecode />
+            </span>
+            <span>free · open source · runs in your browser</span>
+          </div>
+          <h1
+            data-split="lines"
+            className="mt-6 max-w-5xl text-[clamp(2.75rem,8vw,6.5rem)] leading-[0.95] font-bold tracking-[-0.035em]"
+          >
+            Screen recordings that edit themselves.
+          </h1>
+          <div className="mt-8 flex flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
+            <p data-reveal="0.2" className="max-w-xl text-lg text-ink-muted">
+              Record a tab and Vidzart zooms in on every click, smooths your cursor and frames it like a studio would. Add
+              captions, text and music, then export. Nothing leaves your computer.
+            </p>
+            <div data-reveal="0.3" className="flex shrink-0 flex-wrap gap-3">
+              <MotionLink href="/editor" className="inline-flex h-12 items-center gap-2 rounded-lg bg-ink px-5 font-semibold text-bg hover:bg-white">
+                Open the editor <ArrowRight className="size-4" aria-hidden />
+              </MotionLink>
+              <MotionLink
                 href="#install"
-                className="inline-flex h-11 items-center gap-2 rounded-xl border border-line-strong bg-surface px-5 font-semibold hover:bg-surface-2"
+                className="inline-flex h-12 items-center gap-2 rounded-lg border border-line-strong px-5 font-semibold hover:bg-surface-2"
               >
-                <Puzzle className="size-4" aria-hidden /> Get the Chrome extension
-              </a>
-            </Reveal>
-            <Reveal delay={0.2} className="mt-8 w-full">
-              <div className="rounded-3xl border border-line bg-surface/60 p-2 shadow-2xl shadow-black/60 sm:p-3">
-                <HeroDemo />
-              </div>
-              <p className="mt-3 font-mono text-xs text-ink-faint">Live: this is Vidzart’s own renderer running in your browser.</p>
-            </Reveal>
+                <Puzzle className="size-4" aria-hidden /> Get the extension
+              </MotionLink>
+            </div>
           </div>
         </section>
 
-        {/* Features */}
-        <section className="mx-auto max-w-6xl px-4 py-20 sm:px-6" aria-labelledby="features-title">
-          <Reveal>
-            <h2 id="features-title" className="text-center text-3xl font-bold tracking-tight sm:text-4xl">
-              Everything a great demo needs
-            </h2>
-            <p className="mx-auto mt-3 max-w-xl text-center text-ink-muted">The polish of a pro screen-recording studio, without the editing hours.</p>
-          </Reveal>
-          <ul className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {FEATURES.map((f, i) => (
-              <li key={f.title} className={f.wide ? "lg:col-span-2" : undefined}>
-                <Reveal delay={(i % 4) * 0.04} className="h-full">
-                  <div className="h-full rounded-2xl border border-line bg-surface p-6 transition-colors duration-200 hover:border-line-strong">
-                    <span className="flex size-10 items-center justify-center rounded-xl bg-surface-3">
-                      <f.icon className="size-5 text-accent" aria-hidden />
-                    </span>
-                    <h3 className="mt-4 font-semibold">{f.title}</h3>
-                    <p className="mt-1.5 text-sm text-ink-muted">{f.text}</p>
-                  </div>
-                </Reveal>
-              </li>
-            ))}
-          </ul>
+        {/* The live demo, framed like a camera monitor */}
+        <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6" style={{ perspective: "1400px" }}>
+          <div data-demo className="relative rounded-xl border border-line-strong bg-surface p-2 shadow-2xl shadow-black/70 sm:p-3">
+            <div className="mb-2 flex items-center justify-between px-1 font-mono text-[11px] text-ink-muted sm:mb-3">
+              <span className="flex items-center gap-2">
+                <span className="tally size-2 rounded-full bg-record" aria-hidden /> LIVE · vidzart renderer
+              </span>
+              <span className="hidden sm:inline">auto zoom on · smooth cursor on</span>
+            </div>
+            <div className="relative">
+              <HeroDemo />
+              {/* Viewfinder corners */}
+              {[
+                "top-2 left-2 border-t-2 border-l-2",
+                "top-2 right-2 border-t-2 border-r-2",
+                "bottom-2 left-2 border-b-2 border-l-2",
+                "right-2 bottom-2 border-r-2 border-b-2",
+              ].map((c) => (
+                <span key={c} aria-hidden className={`pointer-events-none absolute size-5 border-accent/80 ${c}`} />
+              ))}
+            </div>
+          </div>
+          <p data-reveal className="mt-4 font-mono text-xs text-ink-faint">
+            Not a video: this is Vidzart’s own renderer, running live in your browser on a mock app.
+          </p>
         </section>
 
-        {/* How it works */}
-        <section className="border-y border-line bg-surface/40" aria-labelledby="how-title">
-          <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6">
-            <Reveal>
-              <h2 id="how-title" className="text-center text-3xl font-bold tracking-tight sm:text-4xl">
-                Record. Polish. Export.
+        {/* Marquee */}
+        <section aria-hidden className="overflow-hidden border-y border-line bg-surface py-4">
+          <div data-marquee className="flex w-max gap-10 font-mono text-sm tracking-wide text-ink-muted uppercase">
+            {[...MARQUEE, ...MARQUEE].map((word, i) => (
+              <span key={i} className="flex items-center gap-10">
+                {word} <span className="size-1.5 rounded-full bg-accent" />
+              </span>
+            ))}
+          </div>
+        </section>
+
+        {/* Features: pinned, scrolling sideways through the "takes" on desktop */}
+        <section data-hscroll aria-labelledby="takes-title" className="overflow-hidden py-20 lg:flex lg:h-dvh lg:items-center lg:py-0">
+          <div
+            data-hscroll-track
+            className="flex flex-col gap-6 px-4 sm:px-6 lg:w-max lg:flex-row lg:gap-8 lg:pr-[10vw] lg:pl-[max(1.5rem,calc((100vw-72rem)/2+1.5rem))]"
+          >
+            <div className="flex max-w-md shrink-0 flex-col justify-center lg:w-[28rem]">
+              <p className="font-mono text-xs text-accent uppercase">The edit, done for you</p>
+              <h2 id="takes-title" data-split="scroll" className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
+                Everything a great demo needs.
               </h2>
-            </Reveal>
-            <ol className="mt-12 grid gap-6 sm:grid-cols-3">
-              {STEPS.map((step, i) => (
-                <li key={step.title}>
-                  <Reveal delay={i * 0.06}>
-                    <span className="font-mono text-sm text-accent">0{i + 1}</span>
-                    <h3 className="mt-2 text-xl font-semibold">{step.title}</h3>
+              <p data-reveal className="mt-4 text-ink-muted">
+                The polish of a screen-recording studio, without the editing hours. Scroll through the takes.
+              </p>
+            </div>
+            {TAKES.map((take, i) => (
+              <article
+                key={take.title}
+                data-reveal
+                className="flex shrink-0 flex-col justify-between rounded-xl border border-line bg-surface p-7 lg:h-[62vh] lg:w-[min(30rem,80vw)]"
+              >
+                <div className="flex items-start justify-between">
+                  <span className="font-mono text-sm text-ink-faint">TAKE {String(i + 1).padStart(2, "0")}</span>
+                  <take.icon className="size-7 text-accent" aria-hidden />
+                </div>
+                {/* A big outlined take number, like a film slate. */}
+                <span
+                  aria-hidden
+                  className="mt-6 hidden font-mono text-[9rem] leading-none font-bold text-transparent select-none lg:block"
+                  style={{ WebkitTextStroke: "1px var(--line-strong)" }}
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div className="mt-10 lg:mt-0">
+                  <h3 className="text-2xl font-semibold tracking-tight sm:text-3xl">{take.title}</h3>
+                  <p className="mt-3 text-ink-muted">{take.text}</p>
+                  <p className="mt-6 border-t border-line pt-4 font-mono text-xs text-ink-faint uppercase">{take.spec}</p>
+                </div>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        {/* How it works: a timeline that draws itself */}
+        <section className="border-y border-line bg-surface/50" aria-labelledby="how-title">
+          <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6">
+            <h2 id="how-title" data-split="scroll" className="text-4xl font-bold tracking-tight sm:text-5xl">
+              Record. Polish. Export.
+            </h2>
+            <div className="relative mt-14">
+              <div className="absolute top-3 right-0 left-0 hidden h-px bg-line sm:block" aria-hidden />
+              <div data-progress className="absolute top-3 right-0 left-0 hidden h-px origin-left bg-accent sm:block" aria-hidden />
+              <ol className="relative grid gap-10 sm:grid-cols-3">
+                {STEPS.map((step, i) => (
+                  <li key={step.title} data-reveal={String(i * 0.1)}>
+                    <span className="flex size-6 items-center justify-center rounded-full border border-accent bg-bg font-mono text-[11px] text-accent">
+                      {i + 1}
+                    </span>
+                    <h3 className="mt-5 text-xl font-semibold">{step.title}</h3>
                     <p className="mt-2 text-sm text-ink-muted">{step.text}</p>
-                  </Reveal>
-                </li>
-              ))}
-            </ol>
+                  </li>
+                ))}
+              </ol>
+            </div>
           </div>
         </section>
 
         {/* Install */}
-        <section id="install" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-20 sm:px-6" aria-labelledby="install-title">
-          <div className="grid items-start gap-10 lg:grid-cols-2">
-            <Reveal>
-              <h2 id="install-title" className="text-3xl font-bold tracking-tight sm:text-4xl">
-                Get the Chrome extension
+        <section id="install" className="mx-auto max-w-6xl scroll-mt-20 px-4 py-24 sm:px-6" aria-labelledby="install-title">
+          <div className="grid items-start gap-12 lg:grid-cols-2">
+            <div>
+              <p className="font-mono text-xs text-accent uppercase">Chrome extension</p>
+              <h2 id="install-title" data-split="scroll" className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
+                The part that sees your clicks.
               </h2>
-              <p className="mt-3 text-ink-muted">
+              <p data-reveal className="mt-4 text-ink-muted">
                 The extension records a tab together with your clicks and cursor, which is what makes the automatic zooms
-                possible. It’s installed from source for now (it isn’t on the Chrome Web Store), which takes a minute.
+                possible. It installs from source for now (not on the Chrome Web Store yet); it takes a minute.
               </p>
-              <p className="mt-4 text-sm text-ink-muted">
+              <p data-reveal className="mt-4 text-sm text-ink-muted">
                 No extension? You can still{" "}
-                <Link href="/record" className="text-ink underline underline-offset-4">
+                <MotionLink href="/record" className="text-ink underline underline-offset-4">
                   record your screen here
-                </Link>{" "}
+                </MotionLink>{" "}
                 or{" "}
-                <Link href="/editor" className="text-ink underline underline-offset-4">
+                <MotionLink href="/editor" className="text-ink underline underline-offset-4">
                   edit any video
-                </Link>
+                </MotionLink>
                 .
               </p>
-            </Reveal>
-            <Reveal delay={0.08}>
-              <ol className="space-y-3 rounded-2xl border border-line bg-surface p-6 text-sm">
-                <li className="flex gap-3">
-                  <span className="font-mono text-accent">1</span>
-                  <span>
-                    Clone and build:{" "}
-                    <code className="mt-2 block rounded-lg bg-bg px-3 py-2 font-mono text-xs leading-relaxed text-ink">
-                      git clone {LINKS.extension}.git
-                      <br />
-                      cd vidzart-extension && pnpm install && pnpm build
+            </div>
+            <div data-reveal="0.1">
+              <ol className="divide-y divide-line rounded-xl border border-line bg-surface text-sm">
+                <li className="flex gap-4 p-5">
+                  <span className="font-mono text-accent">01</span>
+                  <span className="min-w-0">
+                    Clone and build
+                    <code className="mt-2 block overflow-x-auto rounded-md bg-bg px-3 py-2 font-mono text-xs leading-relaxed whitespace-pre text-ink">
+                      {`git clone ${LINKS.extension}.git\ncd vidzart-extension && pnpm install && pnpm build`}
                     </code>
                   </span>
                 </li>
-                <li className="flex gap-3">
-                  <span className="font-mono text-accent">2</span>
+                <li className="flex gap-4 p-5">
+                  <span className="font-mono text-accent">02</span>
                   <span>
                     Open <code className="font-mono text-ink">chrome://extensions</code> and turn on <b>Developer mode</b>.
                   </span>
                 </li>
-                <li className="flex gap-3">
-                  <span className="font-mono text-accent">3</span>
+                <li className="flex gap-4 p-5">
+                  <span className="font-mono text-accent">03</span>
                   <span>
-                    <b>Load unpacked</b> → choose the <code className="font-mono text-ink">dist/chrome-mv3</code> folder. Pin
-                    Vidzart, open any tab and press Record.
+                    <b>Load unpacked</b> → pick <code className="font-mono text-ink">dist/chrome-mv3</code>. Pin Vidzart, open any
+                    tab, press Record.
                   </span>
                 </li>
               </ol>
               <a href={LINKS.extension} className="mt-4 inline-flex items-center gap-2 text-sm text-ink-muted hover:text-ink">
                 <Download className="size-4" aria-hidden /> Source on GitHub
               </a>
-            </Reveal>
+            </div>
           </div>
         </section>
 
         {/* Privacy */}
-        <section className="border-t border-line bg-surface/40" aria-labelledby="privacy-title">
-          <div className="mx-auto grid max-w-6xl gap-8 px-4 py-20 sm:px-6 lg:grid-cols-3">
-            <Reveal>
-              <h2 id="privacy-title" className="text-3xl font-bold tracking-tight">
-                Private by design
+        <section className="border-t border-line" aria-labelledby="privacy-title">
+          <div className="mx-auto grid max-w-6xl gap-10 px-4 py-24 sm:px-6 lg:grid-cols-3">
+            <div>
+              <h2 id="privacy-title" data-split="scroll" className="text-4xl font-bold tracking-tight">
+                Private by design.
               </h2>
-              <p className="mt-3 text-ink-muted">There are no Vidzart servers, accounts or cloud storage. Everything happens on your device.</p>
-            </Reveal>
+              <p data-reveal className="mt-3 text-ink-muted">
+                No Vidzart servers, accounts or cloud storage. Recording, editing, captions and export all happen on your
+                device.
+              </p>
+            </div>
             {[
               { icon: Lock, title: "Your videos stay local", text: "Projects autosave in your browser. Export or save a file whenever you like." },
               {
                 icon: KeyRound,
                 title: "AI on your terms",
-                text: "Captions run on-device. Optional writing tools use your own API key, stored only in your browser.",
+                text: "Captions run on-device. Optional writing tools use your own API key, kept only in your browser.",
               },
             ].map((p, i) => (
-              <Reveal key={p.title} delay={0.05 + i * 0.05}>
+              <div key={p.title} data-reveal={String(0.1 + i * 0.1)} className="border-l border-line pl-6">
                 <p.icon className="size-5 text-accent" aria-hidden />
                 <h3 className="mt-3 font-semibold">{p.title}</h3>
                 <p className="mt-1.5 text-sm text-ink-muted">{p.text}</p>
-              </Reveal>
+              </div>
             ))}
           </div>
         </section>
 
-        {/* Final CTA */}
-        <section className="mx-auto max-w-6xl px-4 py-24 text-center sm:px-6">
-          <Reveal>
-            <h2 className="text-3xl font-bold tracking-tight sm:text-5xl">Make your next demo look great</h2>
-            <div className="mt-8 flex flex-wrap justify-center gap-3">
-              <Link href="/editor" className="bg-brand inline-flex h-11 items-center rounded-xl px-6 font-semibold text-white hover:brightness-110">
-                Open the editor
-              </Link>
-              <a
+        {/* Final call */}
+        <section className="border-t border-line">
+          <div className="mx-auto max-w-6xl px-4 py-28 sm:px-6">
+            <h2 data-split="scroll" className="max-w-4xl text-[clamp(2.5rem,6vw,5rem)] leading-[0.95] font-bold tracking-[-0.03em]">
+              Make your next demo look like it took a day.
+            </h2>
+            <div data-reveal className="mt-10 flex flex-wrap gap-3">
+              <MotionLink href="/editor" className="inline-flex h-12 items-center gap-2 rounded-lg bg-ink px-6 font-semibold text-bg hover:bg-white">
+                Open the editor <ArrowRight className="size-4" aria-hidden />
+              </MotionLink>
+              <MotionLink
                 href={LINKS.coffee}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex h-11 items-center rounded-xl border border-line-strong px-6 font-semibold hover:bg-surface-2"
+                external
+                className="inline-flex h-12 items-center rounded-lg border border-line-strong px-6 font-semibold hover:bg-surface-2"
               >
                 Buy me a coffee
-              </a>
+              </MotionLink>
             </div>
-          </Reveal>
+          </div>
         </section>
       </main>
       <SiteFooter />
-    </MotionRoot>
+    </LandingScene>
   );
 }

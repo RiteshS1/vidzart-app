@@ -60,7 +60,7 @@ function drawApp(ctx: CanvasRenderingContext2D, t: number, clicked: { export: bo
   // sidebar
   ctx.fillStyle = "#111827";
   ctx.fillRect(0, 0, 220, H);
-  ctx.fillStyle = "#8b7cff";
+  ctx.fillStyle = "#ffb224";
   ctx.beginPath();
   ctx.roundRect(28, 30, 36, 36, 10);
   ctx.fill();
@@ -70,7 +70,7 @@ function drawApp(ctx: CanvasRenderingContext2D, t: number, clicked: { export: bo
   ["Overview", "Reports", "Customers", "Settings"].forEach((label, i) => {
     const active = clicked.tab ? i === 1 : i === 0;
     if (active) {
-      ctx.fillStyle = "rgba(139,124,255,0.18)";
+      ctx.fillStyle = "rgba(255,178,36,0.16)";
       ctx.beginPath();
       ctx.roundRect(16, 120 + i * 56 - 26, 188, 42, 10);
       ctx.fill();
@@ -83,7 +83,7 @@ function drawApp(ctx: CanvasRenderingContext2D, t: number, clicked: { export: bo
   ctx.fillStyle = "#111827";
   ctx.font = "700 30px system-ui, sans-serif";
   ctx.fillText(clicked.tab ? "Reports" : "Overview", 260, 80);
-  ctx.fillStyle = clicked.export ? "#4ade80" : "#6d5dfc";
+  ctx.fillStyle = clicked.export ? "#16a34a" : "#111827";
   ctx.beginPath();
   ctx.roundRect(980, 128, 160, 48, 12);
   ctx.fill();
@@ -110,7 +110,7 @@ function drawApp(ctx: CanvasRenderingContext2D, t: number, clicked: { export: bo
   ctx.beginPath();
   ctx.roundRect(260, 360, 880, 380, 16);
   ctx.fill();
-  ctx.strokeStyle = "#8b7cff";
+  ctx.strokeStyle = "#f59e0b";
   ctx.lineWidth = 4;
   ctx.beginPath();
   for (let i = 0; i <= 40; i++) {
@@ -137,7 +137,7 @@ export function HeroDemo() {
     const log = scriptedEvents();
     const project = createProject({ duration: LOOP_MS, width: W, height: H, fps: 60 });
     project.settings.padding = 0.07;
-    project.settings.background = { type: "gradient", from: "#6d5dfc", to: "#e27bc0", angle: 135 };
+    project.settings.background = { type: "color", color: "#2a2a2e" };
     project.settings.cursor = { visible: true, scale: 1.4, smoothing: 0.6 };
     project.segments = generateAutoZooms(log, LOOP_MS, { scale: 2, holdMs: 1400 });
     const cursorAt = createCursorLookup(log);

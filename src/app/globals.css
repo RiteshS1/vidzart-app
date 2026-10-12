@@ -92,3 +92,26 @@ input[type="range"] {
     scroll-behavior: auto !important;
   }
 }
+
+/*
+ * Landing page motion (LandingScene): elements that animate in start hidden
+ * from the very first paint (a class added by JavaScript would come after the
+ * page is already visible and flicker). Only when motion is welcome; the page
+ * adds a <noscript> override for browsers without JavaScript.
+ */
+@media (prefers-reduced-motion: no-preference) {
+  .landing [data-split],
+  .landing [data-reveal] {
+    opacity: 0;
+  }
+}
+
+/* A slow blink, like a recording tally light. */
+@keyframes tally {
+  50% {
+    opacity: 0.25;
+  }
+}
+.tally {
+  animation: tally 1.6s steps(1) infinite;
+}
