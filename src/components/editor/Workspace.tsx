@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { applyAutoZooms } from "@/lib/editor/actions";
 import { EditorStore } from "@/lib/editor/store";
 import { cursorTrackCache } from "@/lib/effects/cursorTrack";
@@ -34,6 +34,8 @@ export interface Session {
   events: VidzEvents | null;
   /** Id of the copy saved in this browser (autosave); null until it exists or if saving failed. */
   storedId: string | null;
+  /** Add automatic zooms as soon as the editor opens (fresh extension recordings). */
+  autoZoomOnOpen: boolean;
 }
 
 export function Workspace({ session, onClose }: { session: Session; onClose: () => void }) {
@@ -82,7 +84,22 @@ function ProjectBar({ session, onClose }: { session: Session; onClose: () => voi
   const autosave = useAutosave(store, session.storedId);
   const [status, setStatus] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
-  const hasClicks = session.events?.events.some((e) => e.type === "click") ?? false;
+  const clickCount = useMemo(
+    () => session.events?.events.filter((e) => e.type === "click").length ?? 0,
+    [session.events],
+  );
+  const hasClicks = clickCount > 0;
+
+  // Fresh extension recording: zoom on the clicks immediately (one undo
+  // step). The ref guards against React StrictMode running effects twice in
+  // development, which would add a second, identical undo step.
+  const autoZoomed = useRef(false);
+  useEffect(() => {
+    if (!session.autoZoomOnOpen || !session.events || autoZoomed.current) return;
+    autoZoomed.current = true;
+    const n = applyAutoZooms(store, session.events);
+    setStatus(n === 0 ? "No clicks to zoom on" : `Added ${n} automatic zoom${n === 1 ? "" : "s"} · Undo to remove`);
+  }, [session.autoZoomOnOpen, session.events, store]);
 
   const save = async () => {
     setStatus("Saving…");
@@ -113,6 +130,11 @@ function ProjectBar({ session, onClose }: { session: Session; onClose: () => voi
       <span className="truncate text-sm opacity-60" data-testid="file-name">
         {session.name}
       </span>
+      {session.events && (
+        <span className="text-xs opacity-50" data-testid="click-count" title="From the extension's cursor/click log">
+          {clickCount} click{clickCount === 1 ? "" : "s"} tracked
+        </span>
+      )}
       {status && (
         <span className="text-xs opacity-50" role="status">
           {status}

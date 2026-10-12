@@ -3,6 +3,7 @@ import { test, expect, type Page } from "@playwright/test";
 import type { VidzEvents } from "../src/lib/events/types";
 import type { VidzProject } from "../src/lib/project/types";
 import { readVidz, writeVidz } from "../src/lib/vidz/vidzFile";
+import { readZip, writeZip } from "../src/lib/vidz/zip";
 
 // .vidz files are built in Node with the app's own writer, the same code the
 // editor uses to save, so these tests also cover the file format end to end.
@@ -214,6 +215,41 @@ test("a blur box hides part of the frame and can be redrawn", async ({ page }) =
   // (Not exactly `sharp`: the baseline may come from a neighboring frame
   // with slightly different compression noise at the edge.)
   await expect.poll(async () => (await region(page, bx, by, 30)).white).toBeGreaterThan(sharp * 0.8);
+});
+
+/** A .vidz exactly as the extension writes it (createdBy: vidzart-extension). */
+async function extensionVidz(): Promise<Buffer> {
+  const app = await writeVidz({
+    project: project(4_000),
+    video: new Blob([new Uint8Array(video)]),
+    videoName: "video.webm",
+    events,
+    appVersion: "test",
+  });
+  const entries = await readZip(app);
+  const manifest = JSON.parse(await entries.get("manifest.json")!.text());
+  manifest.createdBy = { app: "vidzart-extension", version: "0.1.0" };
+  const files = await Promise.all(
+    [...entries.values()].map(async (e) => ({
+      name: e.name,
+      data: e.name === "manifest.json" ? new Blob([JSON.stringify(manifest)]) : await e.blob(),
+      compress: e.name.endsWith(".json"),
+    })),
+  );
+  return Buffer.from(await (await writeZip(files)).arrayBuffer());
+}
+
+test("a fresh extension recording opens with cursor-following zooms already added", async ({ page }) => {
+  await openFile(page, "demo.vidz", await extensionVidz(), "application/zip");
+  await expect(page.getByRole("status")).toHaveText("Added 2 automatic zooms · Undo to remove");
+  await expect(page.getByTestId("zoom-block")).toHaveCount(2);
+  await expect(page.getByTestId("click-count")).toHaveText("3 clicks tracked");
+  // Cursorful style: the zoom follows the cursor.
+  await page.getByTestId("zoom-block").first().click();
+  await expect(page.getByRole("button", { name: "Follow cursor" })).toHaveAttribute("aria-pressed", "true");
+  // One undo removes them all.
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByTestId("zoom-block")).toHaveCount(0);
 });
 
 test("plain videos have no auto zoom and no cursor follow", async ({ page }) => {

@@ -27,7 +27,7 @@ async function sessionFromVideo(file: File, url: string): Promise<Omit<Session, 
     });
   }
   const project = createProject({ duration: info.durationMs, width: info.width, height: info.height, fps: info.fps });
-  return { name: file.name, video: file, project, events: null };
+  return { name: file.name, video: file, project, events: null, autoZoomOnOpen: false };
 }
 
 const errorText = (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback);
@@ -59,7 +59,19 @@ export default function Editor() {
         if (isVidz(file)) {
           // A saved project: video + events + edits, all in one file.
           const contents = await readVidz(file);
-          next = { name: file.name, video: contents.video, project: contents.project, events: contents.events };
+          next = {
+            name: file.name,
+            video: contents.video,
+            project: contents.project,
+            events: contents.events,
+            // A fresh recording from the extension: add the zooms right away,
+            // like Cursorful. Not for projects that already have edits (a
+            // saved .vidz you're continuing), so deleted zooms stay deleted.
+            autoZoomOnOpen:
+              contents.manifest.createdBy.app === "vidzart-extension" &&
+              contents.project.segments.length === 0 &&
+              contents.events !== null,
+          };
           url = URL.createObjectURL(contents.video);
         } else {
           url = URL.createObjectURL(file);
@@ -90,7 +102,11 @@ export default function Editor() {
         const stored = await getStoredProject(id);
         if (!stored) throw new Error("This project is no longer saved in this browser.");
         const url = URL.createObjectURL(stored.video);
-        show({ name: stored.name, video: stored.video, project: stored.project, events: stored.events, storedId: id }, url, attempt);
+        show(
+          { name: stored.name, video: stored.video, project: stored.project, events: stored.events, storedId: id, autoZoomOnOpen: false },
+          url,
+          attempt,
+        );
       } catch (e) {
         if (attempt === openCount.current) setError(errorText(e, "Couldn't open this project."));
       }
