@@ -129,3 +129,49 @@ test("a spotlight dims everything but its area; a box outline draws itself", asy
   });
   expect(yellow).toBeGreaterThan(200);
 });
+
+async function rgbAt(page: Page, fx: number, fy: number) {
+  return page.getByTestId("preview-canvas").evaluate(
+    (el, [x, y]) => {
+      const c = el as HTMLCanvasElement;
+      return [...c.getContext("2d")!.getImageData(Math.floor(c.width * x!), Math.floor(c.height * y!), 1, 1).data].slice(0, 3);
+    },
+    [fx, fy],
+  );
+}
+
+test("effects: mono filter, fade in from black, dip to black at a cut", async ({ page }) => {
+  await page.goto("/editor");
+  await page.getByLabel("Choose a video file").setInputFiles({ name: "clip.webm", mimeType: "video/webm", buffer: video });
+  await expect(page.getByTestId("file-name")).toHaveText("clip.webm");
+  await page.keyboard.press("ArrowRight"); // 1 s in
+  // The test video is a blue-ish gray (#202a44): blue is clearly above red.
+  await expect.poll(async () => { const [r, , b] = await rgbAt(page, 0.5, 0.5); return b! - r!; }).toBeGreaterThan(20);
+
+  await page.getByRole("tab", { name: "Effects" }).click();
+  await page.getByRole("group", { name: "Filter" }).getByRole("button", { name: "Mono" }).click();
+  await page.getByRole("slider", { name: /^Strength/ }).fill("1");
+  await expect.poll(async () => { const [r, , b] = await rgbAt(page, 0.5, 0.5); return Math.abs(b! - r!); }).toBeLessThan(6);
+
+  // Fade in over 2 s: at the very start the frame is black, later it isn't.
+  await page.getByRole("slider", { name: /^Fade in/ }).fill("2000");
+  await page.keyboard.press("Home");
+  await expect.poll(async () => Math.max(...(await rgbAt(page, 0.5, 0.5)))).toBeLessThan(5);
+  await page.getByRole("button", { name: "Go to end" }).click();
+  await expect.poll(async () => Math.max(...(await rgbAt(page, 0.5, 0.5)))).toBeGreaterThan(20);
+
+  // Cut 30%–50%, then "Dip": exactly at the cut the picture is black.
+  const track = page.getByTestId("timeline-track");
+  const box = (await track.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.3, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2, { steps: 5 });
+  await page.mouse.up();
+  await page.getByRole("button", { name: "Cut selection" }).click();
+  await page.getByRole("group", { name: "Transition" }).getByRole("button", { name: "Dip" }).click();
+  const seam = (await page.getByTestId("cut-seam").boundingBox())!;
+  // Click the ruler at the seam's x to put the playhead on the cut.
+  const ruler = (await page.getByTestId("timeline-ruler").boundingBox())!;
+  await page.mouse.click(seam.x + seam.width / 2, ruler.y + ruler.height / 2);
+  await expect.poll(async () => Math.max(...(await rgbAt(page, 0.5, 0.5)))).toBeLessThan(12);
+});

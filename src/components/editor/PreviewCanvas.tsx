@@ -7,13 +7,14 @@ import type { TextSegment } from "@/lib/project/types";
 import { outputAspect } from "@/lib/render/layout";
 import { renderFrame } from "@/lib/render/renderFrame";
 import { layoutText } from "@/lib/render/text";
+import { cutPoints, type TimeMap } from "@/lib/timeline/timeMap";
 import { useEditor, useEditorContext } from "./EditorContext";
 
 // The live preview. Everything here runs in one requestAnimationFrame loop
 // set up once in an effect: React renders this component a single time and
 // never again, no matter how fast the video plays.
 export function PreviewCanvas() {
-  const { store, controller, video, cursorAt, getCursorTrack } = useEditorContext();
+  const { store, controller, video, cursorAt, getCursorTrack, getTimeMap } = useEditorContext();
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -77,6 +78,7 @@ export function PreviewCanvas() {
       if (dirty || controller.playing) {
         dirty = false;
         const { project } = store.getState();
+        const map = getTimeMap();
         // readyState >= HAVE_CURRENT_DATA means there's a frame to draw.
         const hasFrame = video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA;
         renderFrame(
@@ -92,7 +94,12 @@ export function PreviewCanvas() {
             },
           },
           project,
-          { sourceTime: controller.getSourceTime(), cursorAt, cursor: getCursorTrack(project) },
+          {
+            sourceTime: controller.getSourceTime(),
+            cursorAt,
+            cursor: getCursorTrack(project),
+            output: { time: controller.getOutputTime(), duration: map.outputDuration, cuts: cutsOf(map) },
+          },
         );
       }
       frame = requestAnimationFrame(loop);
@@ -106,7 +113,7 @@ export function PreviewCanvas() {
       video.removeEventListener("seeked", markDirty);
       video.removeEventListener("loadeddata", markDirty);
     };
-  }, [store, controller, video, cursorAt, getCursorTrack]);
+  }, [store, controller, video, cursorAt, getCursorTrack, getTimeMap]);
 
   return (
     <div ref={containerRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
@@ -175,6 +182,15 @@ function TextHandle({ canvasRef }: { canvasRef: React.RefObject<HTMLCanvasElemen
       }}
     />
   );
+}
+
+// Cut points are derived from the time map; cache them per map object
+// (getTimeMap returns the same object until the segments change).
+const cutCache = new WeakMap<TimeMap, number[]>();
+function cutsOf(map: TimeMap): number[] {
+  let cuts = cutCache.get(map);
+  if (!cuts) cutCache.set(map, (cuts = cutPoints(map)));
+  return cuts;
 }
 
 let scratch: CanvasRenderingContext2D | null = null;
