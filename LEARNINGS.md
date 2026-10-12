@@ -16,6 +16,20 @@ coordinate mapping, encoding, browser/extension quirks). Newest entries at the t
 
 ## Log
 
+### 2026-10-12: Editors show output time; cameras need a dead zone
+- **Feedback:** after cutting, the cut part stayed on the timeline (hatched), which felt broken:
+  in every video editor a cut is *gone*. The fix was conceptual: lay the timeline out in OUTPUT
+  time. Segments stay stored in source time; every block is placed with `sourceToOutput` and
+  every pointer position maps back with `outputToSource`. A cut becomes a zero-width seam.
+- **Zooms "not happening":** they only appeared after pressing Auto zoom. Cursorful-style tools
+  zoom automatically, so fresh extension recordings now get them on open (flag from the
+  `.vidz` manifest's `createdBy`, so reopening an edited project doesn't re-add deleted ones).
+- **Following the cursor naively is nauseating:** every hand tremor shakes the frame. A dead zone
+  (move only when the cursor leaves the middle 50% of the view) plus a critically damped spring
+  (`a = ω²(target − x) − 2ωv`: fastest approach with no overshoot) gives the calm "camera
+  operator" pan. Simulated once per zoom at 60 Hz so preview and export match exactly.
+- **Double/triple clicks:** group by button presses (`down`), not `click` events.
+
 ### 2026-10-12: Phase 6 (on-device AI and BYOK)
 - **CORS per provider (checked with a preflight, no key needed):**
   `curl -X OPTIONS <url> -H "Origin: http://localhost:3000" -H "Access-Control-Request-Method: POST"
