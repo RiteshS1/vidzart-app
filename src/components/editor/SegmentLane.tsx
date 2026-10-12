@@ -94,7 +94,16 @@ type Drag =
       key: string; // coalesce key: the whole drag is one undo step
     };
 
-export function SegmentLane(props: { kind: LaneKind; toMs: (clientX: number) => number; duration: number }) {
+/** CSS position of a source range on the (output-time) timeline, or null if it's all cut. */
+export type Placer = (start: number, end: number) => { left: string; width: string } | null;
+
+export function SegmentLane(props: {
+  kind: LaneKind;
+  /** Pointer x → SOURCE ms (segments are stored in source time). */
+  toMs: (clientX: number) => number;
+  place: Placer;
+  duration: number;
+}) {
   const lane = LANES[props.kind];
   const { store, controller } = useEditorContext();
   const segments = useEditor((s) => s.project.segments);
@@ -104,7 +113,6 @@ export function SegmentLane(props: { kind: LaneKind; toMs: (clientX: number) => 
   // The rubber band while creating. Local state is fine here: it only
   // re-renders this lane, and only during a drag.
   const [draft, setDraft] = useState<{ start: number; end: number } | null>(null);
-  const pct = (ms: number) => `${(ms / props.duration) * 100}%`;
 
   const onLaneDown = (event: PointerEvent<HTMLDivElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
@@ -177,7 +185,7 @@ export function SegmentLane(props: { kind: LaneKind; toMs: (clientX: number) => 
   return (
     <div
       data-testid={`${props.kind}-lane`}
-      className="relative mt-1 h-8 cursor-crosshair rounded-md bg-black/[.04] dark:bg-white/[.05]"
+      className="relative h-8 cursor-crosshair rounded-md bg-black/[.04] dark:bg-white/[.05]"
       onPointerDown={onLaneDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -189,6 +197,8 @@ export function SegmentLane(props: { kind: LaneKind; toMs: (clientX: number) => 
       )}
       {items.map((item) => {
         const selected = item.id === selectedId;
+        const place = props.place(item.start, item.end);
+        if (!place) return null; // entirely inside a cut: nothing to show
         return (
           <div
             key={item.id}
@@ -200,7 +210,7 @@ export function SegmentLane(props: { kind: LaneKind; toMs: (clientX: number) => 
             className={`group absolute inset-y-1 flex cursor-grab items-center justify-center overflow-hidden rounded-sm text-[10px] font-semibold text-white active:cursor-grabbing ${
               selected ? lane.colors[1] : lane.colors[0]
             }`}
-            style={{ left: pct(item.start), width: pct(item.end - item.start) }}
+            style={place}
             // Move/up events from the captured block bubble up to the lane's
             // handlers, so the block only needs pointerdown.
             onPointerDown={(e) => onBlockDown(e, item, "move")}
@@ -219,10 +229,10 @@ export function SegmentLane(props: { kind: LaneKind; toMs: (clientX: number) => 
           </div>
         );
       })}
-      {draft && (
+      {draft && props.place(draft.start, draft.end) && (
         <div
           className="pointer-events-none absolute inset-y-1 rounded-sm bg-black/15 ring-1 ring-black/40 dark:bg-white/20 dark:ring-white/50"
-          style={{ left: pct(draft.start), width: pct(draft.end - draft.start) }}
+          style={props.place(draft.start, draft.end)!}
         />
       )}
     </div>

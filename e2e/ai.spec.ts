@@ -71,7 +71,7 @@ test("Cut silences removes the long pause, as one undo step", async ({ page }) =
 
   await page.getByRole("button", { name: "Cut silences" }).click();
   await expect(page.getByText(/^Cut 1 pause \(\d+\.\d+s\)/)).toBeVisible({ timeout: 30_000 });
-  await expect(page.getByTestId("trim-block")).toHaveCount(1);
+  await expect(page.getByTestId("cut-seam")).toHaveCount(1);
   // ~2.5s pause minus 2×150ms padding ≈ 2.2s (MediaRecorder timing is loose).
   const seconds = Number((await page.getByText(/^Cut 1 pause/).textContent())!.match(/\((\d+\.\d+)s\)/)![1]);
   expect(seconds).toBeGreaterThan(1.6);
@@ -82,7 +82,7 @@ test("Cut silences removes the long pause, as one undo step", async ({ page }) =
   await expect(page.getByText("No pauses that long to cut.")).toBeVisible({ timeout: 30_000 });
 
   await page.getByRole("button", { name: "Undo" }).click();
-  await expect(page.getByTestId("trim-block")).toHaveCount(0);
+  await expect(page.getByTestId("cut-seam")).toHaveCount(0);
 });
 
 test("Cut silences explains when a video has no audio", async ({ page }) => {
@@ -146,12 +146,12 @@ test("Cut filler words uses caption word timings and fixes the caption text", as
   await expect(page.getByLabel("Caption at 0:00.2")).toHaveValue("Um, click record.");
   await page.getByRole("button", { name: "Cut filler words" }).click();
   await expect(page.getByText("Cut 1 filler word.")).toBeVisible();
-  await expect(page.getByTestId("trim-block")).toHaveCount(1);
+  await expect(page.getByTestId("cut-seam")).toHaveCount(1);
   await expect(page.getByLabel("Caption at 0:00.2")).toHaveValue("Click record.");
 
   // One undo step brings back both the audio and the text.
   await page.getByRole("button", { name: "Undo" }).click();
-  await expect(page.getByTestId("trim-block")).toHaveCount(0);
+  await expect(page.getByTestId("cut-seam")).toHaveCount(0);
   await expect(page.getByLabel("Caption at 0:00.2")).toHaveValue("Um, click record.");
 });
 

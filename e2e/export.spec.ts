@@ -64,7 +64,7 @@ test("exports an MP4 with the edits applied", async ({ page }, testInfo) => {
   await expect(page.getByTestId("file-name")).toHaveText("clip.webm");
 
   // Cut the middle third and add a zoom.
-  const lane = page.getByTestId("timeline-lane");
+  const lane = page.getByTestId("timeline-track");
   const box = (await lane.boundingBox())!;
   await page.mouse.move(box.x + box.width / 3, box.y + box.height / 2);
   await page.mouse.down();

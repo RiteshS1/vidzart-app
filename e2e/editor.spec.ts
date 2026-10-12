@@ -98,12 +98,13 @@ test("plays and advances the time readout", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Play" })).toBeVisible();
 });
 
-test("cuts a selected range, then undo restores it", async ({ page }) => {
+test("cutting a selected range removes it from the timeline; undo brings it back", async ({ page }) => {
   await openEditor(page);
   const before = toSeconds(await page.getByTestId("output-duration").textContent());
 
-  const lane = page.getByTestId("timeline-lane");
-  const box = (await lane.boundingBox())!;
+  // Drag on the clips to select 20%–50%.
+  const track = page.getByTestId("timeline-track");
+  const box = (await track.boundingBox())!;
   await page.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2);
   await page.mouse.down();
   await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2, { steps: 5 });
@@ -111,28 +112,82 @@ test("cuts a selected range, then undo restores it", async ({ page }) => {
   await expect(page.getByTestId("range-selection")).toBeVisible();
 
   await page.getByRole("button", { name: "Cut selection" }).click();
-  await expect(page.getByTestId("trim-block")).toHaveCount(1);
+  // The cut part is gone: only a seam marks where it was, and nothing is
+  // selected that could be "cut" again.
+  await expect(page.getByTestId("cut-seam")).toHaveCount(1);
+  await expect(page.getByTestId("range-selection")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Cut selection" })).toBeDisabled();
   const after = toSeconds(await page.getByTestId("output-duration").textContent());
   expect(before - after).toBeGreaterThan(before * 0.25);
   expect(before - after).toBeLessThan(before * 0.35);
+  // The seam sits where the cut began (20% of the old length, now of a shorter timeline).
+  const seam = (await page.getByTestId("cut-seam").boundingBox())!;
+  const seamFraction = (seam.x + seam.width / 2 - box.x) / box.width;
+  expect(seamFraction).toBeGreaterThan(0.24);
+  expect(seamFraction).toBeLessThan(0.34);
 
   await page.getByRole("button", { name: "Undo" }).click();
-  await expect(page.getByTestId("trim-block")).toHaveCount(0);
+  await expect(page.getByTestId("cut-seam")).toHaveCount(0);
   expect(toSeconds(await page.getByTestId("output-duration").textContent())).toBeCloseTo(before, 1);
 });
 
-test("restores a cut by selecting it and pressing Delete", async ({ page }) => {
+test("clicking a cut's seam restores the footage", async ({ page }) => {
   await openEditor(page);
   // Seek to ~1s and trim the start with the [ shortcut.
   const track = page.getByTestId("timeline-track");
   const box = (await track.boundingBox())!;
   await track.click({ position: { x: box.width / 3, y: box.height / 2 } });
   await page.keyboard.press("[");
-  await expect(page.getByTestId("trim-block")).toHaveCount(1);
+  await expect(page.getByTestId("cut-seam")).toHaveCount(1);
 
-  await page.getByTestId("trim-block").click();
-  await page.keyboard.press("Delete");
-  await expect(page.getByTestId("trim-block")).toHaveCount(0);
+  await page.getByRole("button", { name: /^Restore cut/ }).click();
+  await expect(page.getByTestId("cut-seam")).toHaveCount(0);
+});
+
+test("the playhead can be dragged by its handle and the ruler", async ({ page }) => {
+  await openEditor(page);
+  const ruler = (await page.getByTestId("timeline-ruler").boundingBox())!;
+  const total = toSeconds(await page.getByTestId("output-duration").textContent());
+
+  // Grab the handle (at 0) and drag it to ~60%.
+  const handle = (await page.getByTestId("playhead-handle").boundingBox())!;
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(ruler.x + ruler.width * 0.6, handle.y + handle.height / 2, { steps: 8 });
+  await page.mouse.up();
+  await expect.poll(async () => toSeconds(await page.getByTestId("current-time").textContent())).toBeGreaterThan(total * 0.5);
+  expect(toSeconds(await page.getByTestId("current-time").textContent())).toBeLessThan(total * 0.7);
+
+  // Clicking the ruler jumps there.
+  await page.mouse.click(ruler.x + ruler.width * 0.2, ruler.y + ruler.height / 2);
+  await expect.poll(async () => toSeconds(await page.getByTestId("current-time").textContent())).toBeLessThan(total * 0.3);
+});
+
+test("the timeline zooms and scrolls, and shows a filmstrip", async ({ page }) => {
+  await openEditor(page);
+  // Thumbnails were decoded in the worker and drawn (the canvas isn't blank).
+  await expect
+    .poll(() =>
+      page.getByTestId("filmstrip").evaluate((el) => {
+        const c = el as HTMLCanvasElement;
+        if (!c.width) return 0;
+        const data = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
+        let painted = 0;
+        for (let i = 3; i < data.length; i += 4 * 50) if (data[i]! > 0) painted++;
+        return painted;
+      }),
+    )
+    .toBeGreaterThan(10);
+
+  const scroller = page.getByTestId("timeline-scroll");
+  const fits = await scroller.evaluate((el) => el.scrollWidth <= el.clientWidth + 1);
+  expect(fits).toBe(true);
+  await page.getByRole("button", { name: "Zoom timeline in" }).click();
+  await page.getByRole("button", { name: "Zoom timeline in" }).click();
+  await expect.poll(() => scroller.evaluate((el) => el.scrollWidth / el.clientWidth)).toBeGreaterThan(2);
+  await page.getByRole("button", { name: "Zoom timeline out" }).click();
+  await page.getByRole("button", { name: "Zoom timeline out" }).click();
+  await expect.poll(() => scroller.evaluate((el) => el.scrollWidth / el.clientWidth)).toBeLessThan(1.05);
 });
 
 test("changing the background updates the canvas", async ({ page }) => {

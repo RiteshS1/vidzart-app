@@ -171,7 +171,7 @@ function EditorLayout({ value, session }: { value: EditorContextValue; session: 
         <Sidebar session={session} />
       </div>
       <Transport />
-      <Timeline />
+      <Timeline source={session.video} />
     </div>
   );
 }

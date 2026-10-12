@@ -1,128 +1,188 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
-import {
-  addZoomAt,
-  cutSelectedRange,
-  removeSelectedSegment,
-  trimEndFrom,
-  trimStartTo,
-} from "@/lib/editor/actions";
-import { trimsOf } from "@/lib/project/segments";
+import { Minus, Plus, Scissors, Undo2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
+import { runAiTask } from "@/lib/ai/aiClient";
+import { addZoomAt, cutSelectedRange, editSegments, trimEndFrom, trimStartTo } from "@/lib/editor/actions";
+import type { Thumbnails } from "@/lib/media/thumbnails";
+import { removeSegment, trimsOf } from "@/lib/project/segments";
+import { cutSeams, outputSpan } from "@/lib/timeline/layout";
+import { outputToSource, type TimeMap } from "@/lib/timeline/timeMap";
 import { formatTime } from "@/lib/time/formatTime";
 import { useEditor, useEditorContext } from "./EditorContext";
+import { SegmentLane, type Placer } from "./SegmentLane";
 import { button } from "./styles";
-import { SegmentLane } from "./SegmentLane";
 
-// The timeline shows the SOURCE timeline (the whole recording), so cut parts
-// stay visible as hatched blocks you can select and restore. Layout:
+// The timeline shows OUTPUT time, like a regular video editor: cut parts are
+// gone (a small ✂ seam marks where, click it to restore), and sped-up parts
+// are shorter. Segments are stored in source time and mapped through the
+// time map for display; pointer positions map back the same way.
 //
-//   ruler     | 0:00   0:05   0:10 ...
-//   track     | [ recording ////cut//// recording ]   ← drag to scrub
-//   zoom lane | [ 2.0× ]      [ 1.5× ]                ← drag to add/move/resize zooms
-//   speed     |        [ ⏩ 2× ]                       ← same, for speed-ups
-//   blur      |   [ blur ]   [ blur ]                   ← same, for blur boxes
-//   cut lane  | [   drag to select a range   ]        ← then "Cut selection"
+//   ruler   | 0:00   0:05   0:10 ...   ← click or drag to scrub (playhead handle lives here)
+//   clips   | [▮▮▮▮▮▮✂▮▮▮▮▮▮▮▮▮▮▮]      ← filmstrip; click = seek, drag = select a range
+//   zoom    | [ 2.0× ]      [ 1.5× ]  ← drag to add/move/resize
+//   speed   |        [ ⏩ 2× ]
+//   blur    |   [ blur ]
 //
-// x = ms / duration × width. The playhead line moves via a direct style write
-// in an animation-frame loop, not React state.
+// The content is `zoom` times as wide as the visible area and scrolls
+// horizontally (⌘/Ctrl + wheel or the −/+ buttons to zoom). The playhead
+// moves via direct style writes in an animation-frame loop, not React state.
 
 // No 250: labels show tenths of a second, so 0.25s steps would read "0:00.2, 0:00.5, 0:00.7".
 const TICK_STEPS_MS = [100, 200, 500, 1_000, 2_000, 5_000, 10_000, 15_000, 30_000, 60_000, 120_000, 300_000];
 const MIN_TICK_SPACING_PX = 72;
+const MAX_ZOOM = 24;
+const TRACK_HEIGHT = 56;
+/** A pointer that moves less than this on the clip track is a click (seek), not a drag (select). */
+const DRAG_THRESHOLD_PX = 4;
 
-export function Timeline() {
-  const { store, controller } = useEditorContext();
+export function Timeline({ source }: { source: Blob }) {
+  const { store, controller, getTimeMap } = useEditorContext();
   const duration = useEditor((s) => s.project.source.duration);
   const segments = useEditor((s) => s.project.segments);
   const range = useEditor((s) => s.range);
-  const selectedId = useEditor((s) => s.selectedSegmentId);
   const canUndo = useEditor((s) => s.canUndo);
   const canRedo = useEditor((s) => s.canRedo);
-  const trims = useMemo(() => trimsOf(segments), [segments]);
+  // getTimeMap is memoized on the segments array, so this is cheap.
+  const map = useMemo(() => {
+    void segments; // recompute when segments change
+    return getTimeMap();
+  }, [getTimeMap, segments]);
+  const outDuration = Math.max(1, map.outputDuration);
+  const seams = useMemo(() => cutSeams(map, trimsOf(segments)), [map, segments]);
 
-  const areaRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const playheadRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
+  const [viewport, setViewport] = useState(0); // visible width, px
+  const [zoom, setZoom] = useState(1);
+  const width = viewport * zoom; // content width, px
 
-  // Width changes are "human speed" (window resizes), so React state is fine.
   useEffect(() => {
-    const area = areaRef.current;
-    if (!area) return;
-    const observer = new ResizeObserver(([entry]) => setWidth(entry?.contentRect.width ?? 0));
-    observer.observe(area);
+    const el = scrollRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver(([entry]) => setViewport(entry?.contentRect.width ?? 0));
+    observer.observe(el);
     return () => observer.disconnect();
   }, []);
 
-  // Playhead position, every frame.
+  // --- coordinates --------------------------------------------------------
+  const toOutput = useCallback(
+    (clientX: number): number => {
+      const rect = contentRef.current!.getBoundingClientRect();
+      return Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1) * outDuration;
+    },
+    [outDuration],
+  );
+  const toSource = useCallback((clientX: number) => outputToSource(map, toOutput(clientX)), [map, toOutput]);
+  const pct = (outputMs: number) => `${(outputMs / outDuration) * 100}%`;
+  const place: Placer = (start, end) => {
+    const span = outputSpan(map, start, end);
+    return span ? { left: pct(span.start), width: pct(span.end - span.start) } : null;
+  };
+
+  // --- playhead: follows playback every frame, keeps itself in view -------
   useEffect(() => {
     let frame = 0;
     const loop = () => {
-      const area = areaRef.current;
+      const content = contentRef.current;
       const playhead = playheadRef.current;
-      if (area && playhead && duration > 0) {
-        const x = (controller.getSourceTime() / duration) * area.clientWidth;
+      const scroller = scrollRef.current;
+      if (content && playhead && scroller) {
+        const x = (controller.getOutputTime() / outDuration) * content.clientWidth;
         playhead.style.transform = `translateX(${x}px)`;
+        // While playing, page the view along like editors do.
+        if (controller.playing && (x < scroller.scrollLeft || x > scroller.scrollLeft + scroller.clientWidth - 24)) {
+          scroller.scrollLeft = x - 24;
+        }
       }
       frame = requestAnimationFrame(loop);
     };
     frame = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(frame);
-  }, [controller, duration]);
+  }, [controller, outDuration]);
 
-  const toMs = (clientX: number): number => {
-    const rect = areaRef.current!.getBoundingClientRect();
-    const fraction = (clientX - rect.left) / rect.width;
-    return Math.min(Math.max(fraction, 0), 1) * duration;
-  };
-  const msFromEvent = (event: PointerEvent<HTMLElement>) => toMs(event.clientX);
-  const pct = (ms: number) => `${(ms / duration) * 100}%`;
-
-  // --- scrubbing on the track -------------------------------------------
-  const onTrackDown = (event: PointerEvent<HTMLDivElement>) => {
-    // Pointer capture keeps the drag working even when the pointer leaves
-    // the element (or the window).
+  // --- scrubbing: ruler and playhead handle -------------------------------
+  const scrubDown = (event: PointerEvent<HTMLElement>) => {
     event.currentTarget.setPointerCapture(event.pointerId);
     controller.pause();
-    controller.seekSource(msFromEvent(event));
+    controller.seekOutput(toOutput(event.clientX));
+  };
+  const scrubMove = (event: PointerEvent<HTMLElement>) => {
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) controller.seekOutput(toOutput(event.clientX));
+  };
+
+  // --- clip track: click = seek, drag = select a range -------------------
+  const press = useRef<{ x: number; anchor: number; selecting: boolean } | null>(null);
+  const onTrackDown = (event: PointerEvent<HTMLDivElement>) => {
+    event.currentTarget.setPointerCapture(event.pointerId);
+    press.current = { x: event.clientX, anchor: toOutput(event.clientX), selecting: false };
   };
   const onTrackMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      controller.seekSource(msFromEvent(event));
-    }
+    const p = press.current;
+    if (!p) return;
+    if (!p.selecting && Math.abs(event.clientX - p.x) < DRAG_THRESHOLD_PX) return;
+    p.selecting = true;
+    const a = Math.min(p.anchor, toOutput(event.clientX));
+    const b = Math.max(p.anchor, toOutput(event.clientX));
+    // Stored in source time (what a cut needs), selected in output time.
+    store.setUi({ range: { start: outputToSource(map, a), end: outputToSource(map, b) }, selectedSegmentId: null });
   };
-
-  // --- range selection on the cut lane ----------------------------------
-  const anchor = useRef<number | null>(null);
-  const onLaneDown = (event: PointerEvent<HTMLDivElement>) => {
-    event.currentTarget.setPointerCapture(event.pointerId);
-    anchor.current = msFromEvent(event);
+  const onTrackUp = (event: PointerEvent<HTMLDivElement>) => {
+    const p = press.current;
+    press.current = null;
+    if (!p || p.selecting) return;
     store.setUi({ range: null, selectedSegmentId: null });
-  };
-  const onLaneMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (anchor.current === null) return;
-    const ms = msFromEvent(event);
-    store.setUi({ range: { start: Math.min(anchor.current, ms), end: Math.max(anchor.current, ms) } });
-  };
-  const onLaneUp = () => {
-    anchor.current = null;
-    const current = store.getState().range;
-    // A click without a real drag clears the selection.
-    if (current && current.end - current.start < duration / 500) store.setUi({ range: null });
+    controller.pause();
+    controller.seekOutput(toOutput(event.clientX));
   };
 
+  // --- timeline zoom ------------------------------------------------------
+  // Keeps the moment under `anchorClientX` (default: the playhead) in place.
+  const zoomTo = useCallback(
+    (next: number, anchorClientX?: number) => {
+      const scroller = scrollRef.current;
+      const content = contentRef.current;
+      const clamped = Math.min(MAX_ZOOM, Math.max(1, next));
+      if (!scroller || !content) return setZoom(clamped);
+      const rect = scroller.getBoundingClientRect();
+      const anchorX =
+        anchorClientX ?? rect.left + (controller.getOutputTime() / outDuration) * content.clientWidth - scroller.scrollLeft;
+      const fraction = (anchorX - rect.left + scroller.scrollLeft) / content.clientWidth;
+      setZoom(clamped);
+      requestAnimationFrame(() => {
+        scroller.scrollLeft = fraction * scroller.clientWidth * clamped - (anchorX - rect.left);
+      });
+    },
+    [controller, outDuration],
+  );
+  useEffect(() => {
+    const scroller = scrollRef.current;
+    if (!scroller) return;
+    // Non-passive so ⌘/Ctrl + wheel (and trackpad pinch, which Chrome sends
+    // as ctrl+wheel) zooms the timeline instead of the whole page.
+    const onWheel = (event: WheelEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+      event.preventDefault();
+      zoomTo(zoom * Math.exp(-event.deltaY * 0.01), event.clientX);
+    };
+    scroller.addEventListener("wheel", onWheel, { passive: false });
+    return () => scroller.removeEventListener("wheel", onWheel);
+  }, [zoom, zoomTo]);
+
+  // --- ruler ticks ----------------------------------------------------------
   const { ticks, tickStep } = useMemo(() => {
-    if (width === 0 || duration === 0) return { ticks: [], tickStep: 1_000 };
-    const msPerPx = duration / width;
+    if (width === 0) return { ticks: [], tickStep: 1_000 };
+    const msPerPx = outDuration / width;
     const step = TICK_STEPS_MS.find((s) => s / msPerPx >= MIN_TICK_SPACING_PX) ?? TICK_STEPS_MS.at(-1)!;
     const result: number[] = [];
-    for (let t = 0; t <= duration; t += step) result.push(t);
+    for (let t = 0; t <= outDuration; t += step) result.push(t);
     return { ticks: result, tickStep: step };
-  }, [width, duration]);
+  }, [width, outDuration]);
   // Sub-second ticks need the tenths digit, or neighbors would read "0:00 0:00 …".
   const tickLabel = (t: number) => (tickStep < 1_000 ? formatTime(t) : formatTime(t).replace(/\.\d$/, ""));
 
-  const selectedTrim = trims.find((t) => t.id === selectedId);
+  const rangeSpan = range ? outputSpan(map, range.start, range.end) : null;
 
   return (
     <section className="flex flex-col gap-2 select-none" aria-label="Timeline">
@@ -132,9 +192,9 @@ export function Timeline() {
           className={button}
           disabled={!range}
           onClick={() => cutSelectedRange(store)}
-          title="Cut the selected range (Delete)"
+          title="Drag on the clips to select a range, then cut it (Delete)"
         >
-          ✂ Cut selection
+          <Scissors className="mr-1 inline size-3.5" aria-hidden /> Cut selection
         </button>
         <button
           type="button"
@@ -160,17 +220,15 @@ export function Timeline() {
         >
           🔍 Add zoom
         </button>
-        {selectedTrim && (
-          <button
-            type="button"
-            className={button}
-            onClick={() => removeSelectedSegment(store)}
-            title="Restore the selected cut (Delete)"
-          >
-            ↺ Restore cut
-          </button>
-        )}
         <span className="flex-1" />
+        <div className="flex items-center gap-1" role="group" aria-label="Timeline zoom">
+          <button type="button" className={button} onClick={() => zoomTo(zoom / 1.5)} disabled={zoom <= 1} aria-label="Zoom timeline out">
+            <Minus className="size-3.5" aria-hidden />
+          </button>
+          <button type="button" className={button} onClick={() => zoomTo(zoom * 1.5)} disabled={zoom >= MAX_ZOOM} aria-label="Zoom timeline in">
+            <Plus className="size-3.5" aria-hidden />
+          </button>
+        </div>
         <button type="button" className={button} disabled={!canUndo} onClick={() => store.undo()} title="Undo (⌘Z)">
           Undo
         </button>
@@ -179,86 +237,133 @@ export function Timeline() {
         </button>
       </div>
 
-      <div ref={areaRef} className="relative">
-        {/* ruler */}
-        <div className="relative h-5 text-[10px] opacity-60">
-          {ticks.map((t) => (
-            // The 0 label would be half off-screen if centered; left-align it.
-            <span key={t} className={`absolute top-0 font-mono ${t === 0 ? "" : "-translate-x-1/2"}`} style={{ left: pct(t) }}>
-              {tickLabel(t)}
-            </span>
-          ))}
-        </div>
+      <div ref={scrollRef} className="overflow-x-auto overflow-y-hidden px-2 pb-1" data-testid="timeline-scroll">
+        <div ref={contentRef} className="relative flex flex-col gap-1" style={{ width: width || "100%" }}>
+          {/* ruler: click/drag to scrub */}
+          <div
+            data-testid="timeline-ruler"
+            className="relative h-6 cursor-pointer text-[10px] opacity-70"
+            onPointerDown={scrubDown}
+            onPointerMove={scrubMove}
+          >
+            {ticks.map((t) => (
+              // The 0 label would be half off-screen if centered; left-align it.
+              <span key={t} className={`absolute top-1 font-mono ${t === 0 ? "" : "-translate-x-1/2"}`} style={{ left: pct(t) }}>
+                {tickLabel(t)}
+              </span>
+            ))}
+          </div>
 
-        {/* track: scrub */}
-        <div
-          data-testid="timeline-track"
-          className="relative h-14 cursor-pointer overflow-hidden rounded-md bg-indigo-500/25 ring-1 ring-indigo-500/40"
-          onPointerDown={onTrackDown}
-          onPointerMove={onTrackMove}
-        >
-          {ticks.map((t) => (
-            <span key={t} className="absolute top-0 h-full w-px bg-black/10 dark:bg-white/10" style={{ left: pct(t) }} />
-          ))}
-          {trims.map((trim) => (
+          {/* clips: filmstrip; click = seek, drag = select a range */}
+          <div
+            data-testid="timeline-track"
+            className="relative cursor-text overflow-hidden rounded-md bg-indigo-500/25 ring-1 ring-indigo-500/40"
+            style={{ height: TRACK_HEIGHT }}
+            onPointerDown={onTrackDown}
+            onPointerMove={onTrackMove}
+            onPointerUp={onTrackUp}
+          >
+            <Filmstrip source={source} width={width} map={map} />
+            {rangeSpan && (
+              <div
+                data-testid="range-selection"
+                className="pointer-events-none absolute inset-y-0 bg-amber-400/35 ring-2 ring-inset ring-amber-400"
+                style={{ left: pct(rangeSpan.start), width: pct(rangeSpan.end - rangeSpan.start) }}
+              />
+            )}
+            {seams.map(({ at, trim }) => (
+              <button
+                key={trim.id}
+                type="button"
+                data-testid="cut-seam"
+                aria-label={`Restore cut (${formatTime(trim.end - trim.start)})`}
+                title={`Cut ${formatTime(trim.end - trim.start)} here. Click to restore it.`}
+                className="group absolute inset-y-0 z-10 -ml-2 flex w-4 cursor-pointer flex-col items-center"
+                style={{ left: pct(at) }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={() => editSegments(store, (s) => removeSegment(s, trim.id))}
+              >
+                <span className="h-full w-0.5 bg-white/90 shadow group-hover:bg-amber-300" />
+                <span className="absolute top-1 flex size-4 items-center justify-center rounded-full bg-white text-black shadow group-hover:bg-amber-300">
+                  <Scissors className="size-2.5 group-hover:hidden" aria-hidden />
+                  <Undo2 className="hidden size-2.5 group-hover:block" aria-hidden />
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <SegmentLane kind="zoom" toMs={toSource} place={place} duration={duration} />
+          <SegmentLane kind="speed" toMs={toSource} place={place} duration={duration} />
+          <SegmentLane kind="blur" toMs={toSource} place={place} duration={duration} />
+
+          {/* playhead: line across everything, with a handle on the ruler to drag */}
+          <div
+            ref={playheadRef}
+            data-testid="playhead"
+            className="pointer-events-none absolute inset-y-0 left-0 z-20 w-0.5 -ml-px bg-red-500"
+          >
             <div
-              key={trim.id}
-              className="absolute inset-y-0 bg-[repeating-linear-gradient(45deg,rgba(0,0,0,.45)_0_6px,rgba(0,0,0,.25)_6px_12px)]"
-              style={{ left: pct(trim.start), width: pct(trim.end - trim.start) }}
+              data-testid="playhead-handle"
+              // Pointer-only grip; keyboard users move the playhead with ←/→, Home, End.
+              aria-hidden
+              title="Drag to move the playhead"
+              className="pointer-events-auto absolute -top-0.5 left-1/2 h-4 w-3.5 -translate-x-1/2 cursor-grab rounded-b-md rounded-t-sm bg-red-500 shadow active:cursor-grabbing"
+              onPointerDown={scrubDown}
+              onPointerMove={scrubMove}
             />
-          ))}
+          </div>
         </div>
-
-        <SegmentLane kind="zoom" toMs={toMs} duration={duration} />
-        <SegmentLane kind="speed" toMs={toMs} duration={duration} />
-        <SegmentLane kind="blur" toMs={toMs} duration={duration} />
-
-        {/* cut lane: select a range, click cut blocks */}
-        <div
-          data-testid="timeline-lane"
-          className="relative mt-1 h-7 cursor-crosshair rounded-md bg-black/[.04] dark:bg-white/[.05]"
-          onPointerDown={onLaneDown}
-          onPointerMove={onLaneMove}
-          onPointerUp={onLaneUp}
-        >
-          {trims.length === 0 && !range && (
-            <span className="pointer-events-none absolute inset-0 flex items-center justify-center text-xs opacity-40">
-              Drag here to select a range to cut
-            </span>
-          )}
-          {trims.map((trim) => (
-            <button
-              key={trim.id}
-              type="button"
-              data-testid="trim-block"
-              aria-label={`Cut from ${formatTime(trim.start)} to ${formatTime(trim.end)}`}
-              aria-pressed={trim.id === selectedId}
-              className={`absolute inset-y-1 rounded-sm text-[10px] font-medium text-white ${
-                trim.id === selectedId ? "bg-red-500 ring-2 ring-red-300" : "bg-red-500/70 hover:bg-red-500"
-              }`}
-              style={{ left: pct(trim.start), width: pct(trim.end - trim.start) }}
-              onPointerDown={(event) => event.stopPropagation()}
-              onClick={() => store.setUi({ selectedSegmentId: trim.id, range: null })}
-            >
-              cut
-            </button>
-          ))}
-          {range && (
-            <div
-              data-testid="range-selection"
-              className="pointer-events-none absolute inset-y-0 rounded-sm bg-amber-400/40 ring-1 ring-amber-500"
-              style={{ left: pct(range.start), width: pct(range.end - range.start) }}
-            />
-          )}
-        </div>
-
-        {/* playhead spans ruler + track + lane */}
-        <div
-          ref={playheadRef}
-          data-testid="playhead"
-          className="pointer-events-none absolute inset-y-0 left-0 w-0.5 -ml-px bg-red-500"
-        />
       </div>
     </section>
+  );
+}
+
+/**
+ * The clip track's background: one thumbnail per tile, drawn on a canvas.
+ * Thumbnails are decoded once per file in the worker; each tile shows the
+ * one nearest to its output moment, so it follows cuts and zoom instantly.
+ */
+function Filmstrip({ source, width, map }: { source: Blob; width: number; map: TimeMap }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const duration = useEditor((s) => s.project.source.duration);
+  const [thumbs, setThumbs] = useState<Thumbnails | null>(null);
+
+  useEffect(() => {
+    // ~1.5 per second of video, within sensible bounds.
+    const count = Math.min(150, Math.max(12, Math.ceil((duration / 1000) * 1.5)));
+    const task = runAiTask({ type: "thumbnails", video: source, count, height: TRACK_HEIGHT * 2 });
+    task.done.then(setThumbs, () => {}); // no thumbnails is fine: the track stays plain
+    return () => task.cancel();
+  }, [source, duration]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx || !thumbs?.frames.length || width === 0) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(width * dpr);
+    canvas.height = TRACK_HEIGHT * dpr;
+    const first = thumbs.frames[0]!;
+    const tile = (TRACK_HEIGHT * first.width) / first.height; // css px
+    for (let x = 0; x < width; x += tile) {
+      const outputMs = ((x + tile / 2) / width) * map.outputDuration;
+      const sourceMs = outputToSource(map, outputMs);
+      // Nearest decoded frame (times are ascending).
+      let i = thumbs.times.findIndex((t) => t >= sourceMs);
+      if (i < 0) i = thumbs.times.length - 1;
+      else if (i > 0 && sourceMs - thumbs.times[i - 1]! < thumbs.times[i]! - sourceMs) i--;
+      ctx.drawImage(thumbs.frames[i]!, x * dpr, 0, tile * dpr, TRACK_HEIGHT * dpr);
+    }
+  }, [thumbs, width, map]);
+
+  useEffect(() => () => thumbs?.frames.forEach((f) => f.close()), [thumbs]);
+
+  return (
+    <canvas
+      ref={canvasRef}
+      data-testid="filmstrip"
+      className="pointer-events-none absolute inset-0 h-full w-full opacity-80"
+      aria-hidden
+    />
   );
 }

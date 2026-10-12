@@ -252,7 +252,7 @@ test("saves a project and opens it again with all edits", async ({ page }, testI
   // And reopen it in the editor.
   await openFile(page, "plain.vidz", saved, "application/zip");
   await expect(page.getByTestId("zoom-block")).toHaveCount(1);
-  await expect(page.getByTestId("trim-block")).toHaveCount(1);
+  await expect(page.getByTestId("cut-seam")).toHaveCount(1);
 });
 
 test("shows a clear error for a broken .vidz", async ({ page }) => {
