@@ -144,6 +144,7 @@ test("draws the recorded cursor and click effects, with settings to change them"
   // video is brightly colored there, so dark pixels can only be the arrow.
   // (At scale 1 in a ~600px preview the arrow is only ~8px tall.)
   await expect.poll(async () => (await region(page, 0.5, 0.5)).dark).toBeGreaterThan(0);
+  await page.getByRole("tab", { name: "Cursor" }).click();
   await page.getByLabel("Show cursor").uncheck();
   await expect.poll(async () => (await region(page, 0.5, 0.5)).dark).toBe(0);
   await page.getByLabel("Show cursor").check();
@@ -255,7 +256,7 @@ test("a fresh extension recording opens with cursor-following zooms already adde
 test("plain videos have no auto zoom and no cursor follow", async ({ page }) => {
   await openFile(page, "plain.webm", video, "video/webm");
   await expect(page.getByRole("button", { name: "Auto zoom" })).toHaveCount(0);
-  await expect(page.getByLabel("Show cursor")).toHaveCount(0); // nothing to draw
+  await expect(page.getByRole("tab", { name: "Cursor" })).toHaveCount(0); // nothing to draw
   await page.keyboard.press("z");
   await expect(page.getByRole("button", { name: "Follow cursor" })).toBeDisabled();
 });

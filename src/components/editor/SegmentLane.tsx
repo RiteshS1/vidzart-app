@@ -65,7 +65,7 @@ const LANES: Record<LaneKind, LaneConfig> = {
     of: speedsOf,
     add: (s, a, b, d) => addSpeed(s, a, b, d),
     hint: "Drag here to speed up a part",
-    label: (s) => (s.type === "speed" ? `⏩ ${s.rate}×` : ""),
+    label: (s) => (s.type === "speed" ? `${s.rate}× speed` : ""),
     describe: (s) => (s.type === "speed" ? `Speed ${s.rate}× from ${secs(s.start)} to ${secs(s.end)}` : ""),
     colors: ["bg-sky-600/75 hover:bg-sky-600", "bg-sky-600 ring-2 ring-sky-300"],
     seekTo: (s) => s.start,

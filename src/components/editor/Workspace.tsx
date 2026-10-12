@@ -1,5 +1,16 @@
 "use client";
 
+import {
+  Captions as CaptionsIcon,
+  Clapperboard,
+  Download,
+  Film,
+  FolderOpen,
+  MousePointer2,
+  Palette,
+  Sparkles,
+} from "lucide-react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { applyAutoZooms } from "@/lib/editor/actions";
@@ -12,12 +23,13 @@ import type { VidzProject } from "@/lib/project/types";
 import { buildTimeMap, type TimeMap } from "@/lib/timeline/timeMap";
 import { APP_VERSION } from "@/lib/version";
 import { writeVidz } from "@/lib/vidz/vidzFile";
-import { EditorContext, useEditorContext, type EditorContextValue } from "./EditorContext";
+import { EditorContext, useEditor, useEditorContext, type EditorContextValue } from "./EditorContext";
 import { ExportDialog } from "./ExportDialog";
 import { PreviewCanvas } from "./PreviewCanvas";
 import { AiPanel } from "./AiPanel";
+import { CaptionsTool } from "./CaptionsTool";
 import { SelectedSegmentInspector } from "./RangeInspectors";
-import { SettingsPanel } from "./SettingsPanel";
+import { CursorPanel, SettingsPanel } from "./SettingsPanel";
 import { button, primaryButton } from "./styles";
 import { Timeline } from "./Timeline";
 import { Transport } from "./Transport";
@@ -71,7 +83,7 @@ export function Workspace({ session, onClose }: { session: Session; onClose: () 
       <video ref={setVideo} src={session.url} preload="auto" playsInline className="hidden" />
       {value && (
         <EditorContext value={value}>
-          <ProjectBar session={session} onClose={onClose} />
+          <TopBar session={session} onClose={onClose} />
           <EditorLayout value={value} session={session} />
         </EditorContext>
       )}
@@ -79,7 +91,7 @@ export function Workspace({ session, onClose }: { session: Session; onClose: () 
   );
 }
 
-function ProjectBar({ session, onClose }: { session: Session; onClose: () => void }) {
+function TopBar({ session, onClose }: { session: Session; onClose: () => void }) {
   const { store } = useEditorContext();
   const autosave = useAutosave(store, session.storedId);
   const [status, setStatus] = useState<string | null>(null);
@@ -122,50 +134,63 @@ function ProjectBar({ session, onClose }: { session: Session; onClose: () => voi
     setStatus("Saved");
   };
 
+  const autosaveText =
+    autosave === "saving" ? "Saving…" : autosave === "saved" ? "Saved in this browser" : autosave === "error" ? "Couldn't save in this browser" : "";
+
   return (
-    <header className="flex items-center gap-3 border-b border-black/10 px-4 py-2 dark:border-white/10">
-      <Link href="/" className="font-semibold tracking-tight">
-        Vidzart
-      </Link>
-      <span className="truncate text-sm opacity-60" data-testid="file-name">
-        {session.name}
-      </span>
-      {session.events && (
-        <span className="text-xs opacity-50" data-testid="click-count" title="From the extension's cursor/click log">
-          {clickCount} click{clickCount === 1 ? "" : "s"} tracked
+    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
+      <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight" aria-label="Vidzart home">
+        <span className="bg-brand flex size-7 items-center justify-center rounded-lg" aria-hidden>
+          <Clapperboard className="size-4 text-white" />
         </span>
-      )}
+        <span className="hidden sm:inline">Vidzart</span>
+      </Link>
+      <span className="h-5 w-px bg-line" aria-hidden />
+      <div className="flex min-w-0 flex-col leading-tight">
+        <span className="truncate text-sm font-medium" data-testid="file-name" title={session.name}>
+          {session.name}
+        </span>
+        <span className="flex gap-2 text-[11px] text-ink-muted">
+          {session.events && (
+            <span data-testid="click-count" title="From the extension's cursor/click log">
+              {clickCount} click{clickCount === 1 ? "" : "s"} tracked
+            </span>
+          )}
+          <span data-testid="autosave" title="Your edits are kept in this browser">
+            {autosaveText}
+          </span>
+        </span>
+      </div>
       {status && (
-        <span className="text-xs opacity-50" role="status">
+        <span className="hidden rounded-full bg-surface-2 px-3 py-1 text-xs text-ink-muted md:inline" role="status">
           {status}
         </span>
       )}
-      <span className="text-xs opacity-40" data-testid="autosave" title="Your edits are kept in this browser">
-        {autosave === "saving" ? "Saving…" : autosave === "saved" ? "Saved in this browser" : autosave === "error" ? "Couldn't save in this browser" : ""}
-      </span>
       <span className="flex-1" />
       {session.events && (
         <button
           type="button"
           className={button}
           disabled={!hasClicks}
-          title={hasClicks ? "Add zooms around your clicks" : "No clicks in the event log"}
+          title={hasClicks ? "Regenerate zooms around your clicks" : "No clicks in the event log"}
           onClick={() => {
             const n = applyAutoZooms(store, session.events!);
             setStatus(n === 0 ? "No auto zooms to add" : `Added ${n} auto zoom${n === 1 ? "" : "s"}`);
           }}
         >
-          ✨ Auto zoom
+          <Sparkles className="size-4 text-accent" aria-hidden /> Auto zoom
         </button>
       )}
       <button type="button" className={button} onClick={() => void save()} title="Download a .vidz project file">
-        Save project
+        <Download className="size-4" aria-hidden /> <span className="hidden lg:inline">Save project</span>
+        <span className="sr-only lg:hidden">Save project</span>
       </button>
-      <button type="button" className={button} onClick={onClose}>
-        Open another
+      <button type="button" className={button} onClick={onClose} title="Close this project and open another file">
+        <FolderOpen className="size-4" aria-hidden /> <span className="hidden lg:inline">Open another</span>
+        <span className="sr-only lg:hidden">Open another</span>
       </button>
       <button type="button" className={primaryButton} onClick={() => setExporting(true)}>
-        Export MP4
+        <Film className="size-4" aria-hidden /> Export MP4
       </button>
       {exporting && (
         <ExportDialog
@@ -179,57 +204,132 @@ function ProjectBar({ session, onClose }: { session: Session; onClose: () => voi
   );
 }
 
+type ToolId = "style" | "cursor" | "captions" | "ai";
+
 function EditorLayout({ value, session }: { value: EditorContextValue; session: Session }) {
   useEditorShortcuts(value);
   const { controller } = value;
   useEffect(() => () => controller.pause(), [controller]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 p-4">
-      <div className="flex min-h-0 flex-1 flex-col gap-4 lg:flex-row">
-        <div className="flex min-h-[240px] min-w-0 flex-1 flex-col rounded-lg bg-black/[.03] p-4 dark:bg-white/[.03]">
-          <PreviewCanvas />
-        </div>
-        <Sidebar session={session} />
+    // Respect the OS "reduce motion" setting for every Motion animation below.
+    <MotionConfig reducedMotion="user">
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <Tools session={session} />
+        <main className="flex min-h-[260px] min-w-0 flex-1 flex-col bg-bg">
+          <div className="flex min-h-0 flex-1 p-4 lg:p-6">
+            <PreviewCanvas />
+          </div>
+          <div className="flex justify-center px-4 pb-3">
+            <Transport />
+          </div>
+        </main>
+        <Inspector />
       </div>
-      <Transport />
-      <Timeline source={session.video} />
+      <div className="shrink-0 border-t border-line bg-surface px-3 pt-2 pb-3">
+        <Timeline source={session.video} />
+      </div>
+    </MotionConfig>
+  );
+}
+
+/**
+ * Left side: a rail of tools (icon + label) and the panel of the chosen one.
+ * Every panel stays mounted (just hidden), so a running AI task or a
+ * half-typed caption survives switching tools.
+ */
+function Tools({ session }: { session: Session }) {
+  const { cursorAt } = useEditorContext();
+  const [tool, setTool] = useState<ToolId>("style");
+  const tools: { id: ToolId; label: string; icon: typeof Palette; available: boolean }[] = [
+    { id: "style", label: "Style", icon: Palette, available: true },
+    // Only recordings with a click log have a cursor to draw.
+    { id: "cursor", label: "Cursor", icon: MousePointer2, available: Boolean(cursorAt) },
+    { id: "captions", label: "Captions", icon: CaptionsIcon, available: true },
+    { id: "ai", label: "AI", icon: Sparkles, available: true },
+  ];
+  return (
+    <>
+      <nav
+        role="tablist"
+        aria-label="Tools"
+        aria-orientation="vertical"
+        className="flex shrink-0 gap-1 overflow-x-auto border-line bg-surface p-2 lg:w-[72px] lg:flex-col lg:border-r"
+      >
+        {tools
+          .filter((t) => t.available)
+          .map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              id={`tool-${id}`}
+              aria-selected={tool === id}
+              aria-controls={`panel-${id}`}
+              onClick={() => setTool(id)}
+              className={`flex min-w-14 cursor-pointer flex-col items-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium transition-colors duration-150 ${
+                tool === id ? "bg-surface-3 text-ink" : "text-ink-muted hover:bg-surface-2 hover:text-ink"
+              }`}
+            >
+              <Icon className={`size-5 ${tool === id ? "text-accent" : ""}`} aria-hidden />
+              {label}
+            </button>
+          ))}
+      </nav>
+      <section
+        aria-label="Tool settings"
+        className="max-h-[40vh] shrink-0 overflow-y-auto border-line bg-surface p-4 lg:max-h-none lg:w-80 lg:border-r"
+      >
+        <ToolPanel id="style" active={tool}>
+          <SettingsPanel />
+        </ToolPanel>
+        {cursorAt && (
+          <ToolPanel id="cursor" active={tool}>
+            <CursorPanel />
+          </ToolPanel>
+        )}
+        <ToolPanel id="captions" active={tool}>
+          <CaptionsTool video={session.video} name={session.name} />
+        </ToolPanel>
+        <ToolPanel id="ai" active={tool}>
+          <AiPanel video={session.video} />
+        </ToolPanel>
+      </section>
+    </>
+  );
+}
+
+function ToolPanel({ id, active, children }: { id: ToolId; active: ToolId; children: React.ReactNode }) {
+  return (
+    <div role="tabpanel" id={`panel-${id}`} aria-labelledby={`tool-${id}`} hidden={id !== active}>
+      {children}
     </div>
   );
 }
 
-/** Right-hand panel: "Style" (look settings) or "AI" (analysis tools). */
-function Sidebar({ session }: { session: Session }) {
-  const [tab, setTab] = useState<"style" | "ai">("style");
+/**
+ * Right side: properties of whatever is selected on the timeline (a zoom,
+ * speed-up or blur). Slides in on selection, out when nothing is selected,
+ * so the preview gets the space otherwise.
+ */
+function Inspector() {
+  const selected = useEditor((s) => s.project.segments.find((x) => x.id === s.selectedSegmentId) ?? null);
+  const visible = selected !== null && selected.type !== "trim";
   return (
-    <div className="flex min-h-0 w-full flex-col gap-4 lg:w-72">
-      <div role="tablist" aria-label="Sidebar" className="grid grid-cols-2 gap-1 rounded-lg bg-black/[.04] p-1 dark:bg-white/[.06]">
-        {(["style", "ai"] as const).map((t) => (
-          <button
-            key={t}
-            type="button"
-            role="tab"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-            className={`rounded-md py-1 text-sm font-medium ${tab === t ? "bg-background shadow-sm" : "opacity-60 hover:opacity-100"}`}
-          >
-            {t === "style" ? "Style" : "✨ AI"}
-          </button>
-        ))}
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {/* Above the tabs, so selecting a segment always shows its settings. */}
-        <div className="mb-4 empty:hidden">
+    <AnimatePresence initial={false}>
+      {visible && (
+        <motion.aside
+          key="inspector"
+          aria-label="Inspector"
+          initial={{ opacity: 0, x: 24 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: 24, transition: { duration: 0.12 } }}
+          transition={{ type: "spring", stiffness: 420, damping: 36 }}
+          className="shrink-0 overflow-y-auto border-line bg-surface p-4 lg:w-80 lg:border-l"
+        >
           <SelectedSegmentInspector />
-        </div>
-        {/* Both stay mounted, so a running AI task survives switching tabs. */}
-        <div hidden={tab !== "style"}>
-          <SettingsPanel />
-        </div>
-        <div hidden={tab !== "ai"}>
-          <AiPanel video={session.video} name={session.name} />
-        </div>
-      </div>
-    </div>
+        </motion.aside>
+      )}
+    </AnimatePresence>
   );
 }

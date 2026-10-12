@@ -44,7 +44,7 @@ async function openProjectWithCaptions(page: Page) {
   const vidz = await writeVidz({ project, video: new Blob([new Uint8Array(video)]), videoName: "video.webm", events: null, appVersion: "t" });
   await page.getByLabel("Choose a video file").setInputFiles({ name: "demo.vidz", mimeType: "application/zip", buffer: Buffer.from(await vidz.arrayBuffer()) });
   await expect(page.getByTestId("file-name")).toHaveText("demo.vidz");
-  await page.getByRole("tab", { name: "✨ AI" }).click();
+  await page.getByRole("tab", { name: "AI" }).click();
 }
 
 test("writes chapters and translates captions with the user's Anthropic key", async ({ page }) => {

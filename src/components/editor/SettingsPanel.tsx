@@ -23,7 +23,7 @@ const EFFECT_COLORS = ["#ffffff", "#111111", "#6d5dfc", "#facc15"];
 const IDLE_HIDE_MS = 2000;
 
 export function SettingsPanel() {
-  const { store, cursorAt } = useEditorContext();
+  const { store } = useEditorContext();
   const settings = useEditor((s) => s.project.settings);
 
 
@@ -93,8 +93,6 @@ export function SettingsPanel() {
         onChange={(cornerRadius) => update({ cornerRadius }, "cornerRadius")}
       />
 
-      {/* Only recordings with an event log have a cursor to draw. */}
-      {cursorAt && <CursorSettings settings={settings} update={update} />}
 
       <fieldset className="flex flex-col gap-3">
         <legend className={panelLabel}>Shadow</legend>
@@ -117,6 +115,19 @@ export function SettingsPanel() {
         )}
       </fieldset>
     </aside>
+  );
+}
+
+/** The "Cursor" tool: only recordings with an event log have a cursor to draw. */
+export function CursorPanel() {
+  const { store } = useEditorContext();
+  const settings = useEditor((s) => s.project.settings);
+  const update = (patch: Partial<ProjectSettings>, coalesceKey?: string) =>
+    store.edit((p) => ({ ...p, settings: { ...p.settings, ...patch } }), { coalesceKey });
+  return (
+    <div className="flex flex-col gap-6">
+      <CursorSettings settings={settings} update={update} />
+    </div>
   );
 }
 

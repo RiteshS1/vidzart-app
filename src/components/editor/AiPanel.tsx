@@ -4,7 +4,6 @@ import { useState } from "react";
 import { runAiTask } from "@/lib/ai/aiClient";
 import { cutRanges, removeFillerWords } from "@/lib/editor/actions";
 import { ByokTool } from "./ByokTool";
-import { CaptionsTool } from "./CaptionsTool";
 import { useEditor, useEditorContext } from "./EditorContext";
 import { TaskProgress, useTask } from "./TaskProgress";
 import { button, panelLabel } from "./styles";
@@ -12,10 +11,9 @@ import { button, panelLabel } from "./styles";
 // The "AI" tab: tools that analyze the recording. Everything here runs on
 // this device (in a worker) unless it says it uses your own API key.
 
-export function AiPanel({ video, name }: { video: Blob; name: string }) {
+export function AiPanel({ video }: { video: Blob }) {
   return (
     <div className="flex flex-col gap-6">
-      <CaptionsTool video={video} name={name} />
       <SilenceTool video={video} />
       <FillerTool />
       <ByokTool />

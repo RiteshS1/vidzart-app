@@ -25,7 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${sans.variable} ${mono.variable} h-full antialiased`}
+      className={`dark ${sans.variable} ${mono.variable} h-full antialiased`}
     >
       {/*
         suppressHydrationWarning: browser extensions (e.g. ColorZilla adds

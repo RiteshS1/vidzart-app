@@ -1,6 +1,6 @@
 "use client";
 
-import { Minus, Plus, Scissors, Undo2 } from "lucide-react";
+import { ArrowLeftToLine, ArrowRightToLine, EyeOff, Film, Gauge, Minus, Plus, Redo2, Scissors, Undo2, ZoomIn } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { runAiTask } from "@/lib/ai/aiClient";
 import { addZoomAt, cutSelectedRange, editSegments, trimEndFrom, trimStartTo } from "@/lib/editor/actions";
@@ -21,7 +21,7 @@ import { button } from "./styles";
 //   ruler   | 0:00   0:05   0:10 ...   ← click or drag to scrub (playhead handle lives here)
 //   clips   | [▮▮▮▮▮▮✂▮▮▮▮▮▮▮▮▮▮▮]      ← filmstrip; click = seek, drag = select a range
 //   zoom    | [ 2.0× ]      [ 1.5× ]  ← drag to add/move/resize
-//   speed   |        [ ⏩ 2× ]
+//   speed   |        [ 2× speed ]
 //   blur    |   [ blur ]
 //
 // The content is `zoom` times as wide as the visible area and scrolls
@@ -194,7 +194,7 @@ export function Timeline({ source }: { source: Blob }) {
           onClick={() => cutSelectedRange(store)}
           title="Drag on the clips to select a range, then cut it (Delete)"
         >
-          <Scissors className="mr-1 inline size-3.5" aria-hidden /> Cut selection
+          <Scissors className="size-4" aria-hidden /> Cut selection
         </button>
         <button
           type="button"
@@ -202,7 +202,7 @@ export function Timeline({ source }: { source: Blob }) {
           onClick={() => trimStartTo(store, controller.getSourceTime())}
           title="Remove everything before the playhead ([)"
         >
-          ⇤ Trim start
+          <ArrowLeftToLine className="size-4" aria-hidden /> Trim start
         </button>
         <button
           type="button"
@@ -210,7 +210,7 @@ export function Timeline({ source }: { source: Blob }) {
           onClick={() => trimEndFrom(store, controller.getSourceTime())}
           title="Remove everything after the playhead (])"
         >
-          Trim end ⇥
+          Trim end <ArrowRightToLine className="size-4" aria-hidden />
         </button>
         <button
           type="button"
@@ -218,7 +218,7 @@ export function Timeline({ source }: { source: Blob }) {
           onClick={() => addZoomAt(store, controller.getSourceTime())}
           title="Add a zoom at the playhead (Z)"
         >
-          🔍 Add zoom
+          <ZoomIn className="size-4" aria-hidden /> Add zoom
         </button>
         <span className="flex-1" />
         <div className="flex items-center gap-1" role="group" aria-label="Timeline zoom">
@@ -230,14 +230,25 @@ export function Timeline({ source }: { source: Blob }) {
           </button>
         </div>
         <button type="button" className={button} disabled={!canUndo} onClick={() => store.undo()} title="Undo (⌘Z)">
-          Undo
+          <Undo2 className="size-4" aria-hidden /> Undo
         </button>
         <button type="button" className={button} disabled={!canRedo} onClick={() => store.redo()} title="Redo (⇧⌘Z)">
-          Redo
+          <Redo2 className="size-4" aria-hidden /> Redo
         </button>
       </div>
 
-      <div ref={scrollRef} className="overflow-x-auto overflow-y-hidden px-2 pb-1" data-testid="timeline-scroll">
+      <div className="flex">
+      {/* Lane names, aligned with the rows on the right (same heights + gap). */}
+      <div className="flex w-20 shrink-0 flex-col gap-1 pr-2 text-[11px] font-medium text-ink-muted" aria-hidden>
+        <div className="h-6" />
+        <LaneLabel icon={Film} height={TRACK_HEIGHT}>
+          Clips
+        </LaneLabel>
+        <LaneLabel icon={ZoomIn}>Zoom</LaneLabel>
+        <LaneLabel icon={Gauge}>Speed</LaneLabel>
+        <LaneLabel icon={EyeOff}>Blur</LaneLabel>
+      </div>
+      <div ref={scrollRef} className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-2 pb-1" data-testid="timeline-scroll">
         <div ref={contentRef} className="relative flex flex-col gap-1" style={{ width: width || "100%" }}>
           {/* ruler: click/drag to scrub */}
           <div
@@ -314,7 +325,17 @@ export function Timeline({ source }: { source: Blob }) {
           </div>
         </div>
       </div>
+      </div>
     </section>
+  );
+}
+
+function LaneLabel({ icon: Icon, height = 32, children }: { icon: typeof Film; height?: number; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-1.5" style={{ height }}>
+      <Icon className="size-3.5 shrink-0" />
+      {children}
+    </div>
   );
 }
 

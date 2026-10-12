@@ -57,7 +57,7 @@ async function openVideo(page: Page, buffer: Buffer) {
   await page.goto("/editor");
   await page.getByLabel("Choose a video file").setInputFiles({ name: "talk.webm", mimeType: "video/webm", buffer });
   await expect(page.getByTestId("file-name")).toHaveText("talk.webm");
-  await page.getByRole("tab", { name: "✨ AI" }).click();
+  await page.getByRole("tab", { name: "AI" }).click();
 }
 
 test("Cut silences removes the long pause, as one undo step", async ({ page }) => {
@@ -141,7 +141,7 @@ test("Cut filler words uses caption word timings and fixes the caption text", as
   const vidz = await writeVidz({ project, video: new Blob([new Uint8Array(video)]), videoName: "video.webm", events: null, appVersion: "t" });
   await page.getByLabel("Choose a video file").setInputFiles({ name: "talk.vidz", mimeType: "application/zip", buffer: Buffer.from(await vidz.arrayBuffer()) });
   await expect(page.getByTestId("file-name")).toHaveText("talk.vidz");
-  await page.getByRole("tab", { name: "✨ AI" }).click();
+  await page.getByRole("tab", { name: "AI" }).click();
 
   await expect(page.getByLabel("Caption at 0:00.2")).toHaveValue("Um, click record.");
   await page.getByRole("button", { name: "Cut filler words" }).click();
@@ -202,6 +202,7 @@ test.describe("captions (downloads a ~40 MB model; opt-in)", () => {
     const video = await makeVideoFromWav(page, readFileSync(path.join(__dirname, "fixtures/speech.wav")));
     await openVideo(page, video);
 
+    await page.getByRole("tab", { name: "Captions" }).click();
     await page.getByLabel("Speech model").selectOption("tiny");
     await page.getByLabel("Spoken language").selectOption("en");
     await page.getByRole("button", { name: "Generate captions" }).click();

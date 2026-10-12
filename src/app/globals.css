@@ -1,26 +1,100 @@
 @import "tailwindcss";
 
+/*
+ * Vidzart design tokens: "dark pro studio".
+ *
+ * Dark only, on purpose: a video editor is judged by the picture, and a dark
+ * frame around it keeps the eye on the video (it's what CapCut, Premiere and
+ * Screen Studio do). Text colors are chosen for ≥ 4.5:1 contrast on every
+ * surface they appear on.
+ *
+ * Use the semantic names in components (bg-surface, text-ink-muted, …), not
+ * raw hex values, so the look can change in one place.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+
+  --bg: #09090d; /* page */
+  --surface: #111118; /* panels, bars */
+  --surface-2: #191922; /* controls, cards */
+  --surface-3: #23232f; /* hover, selected */
+  --line: rgb(255 255 255 / 0.08); /* borders, dividers */
+  --line-strong: rgb(255 255 255 / 0.16);
+
+  --ink: #f4f4f8; /* primary text: 17:1 on --surface */
+  --ink-muted: #a3a3b8; /* secondary text: 7.4:1 on --surface */
+  --ink-faint: #75758a; /* tertiary, large/non-essential text only */
+
+  --accent: #8b7cff; /* brand violet, lightened for contrast on dark */
+  --accent-2: #e27bc0; /* brand pink */
+  --danger: #f87171;
+  --success: #4ade80;
+  --warning: #fbbf24;
+
+  --radius: 10px;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-background: var(--bg);
+  --color-foreground: var(--ink);
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-ink-muted: var(--ink-muted);
+  --color-ink-faint: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-accent-2: var(--accent-2);
+  --color-danger: var(--danger);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
   --font-sans: var(--font-sans-face);
   --font-mono: var(--font-mono-face);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+/*
+ * Components written with `dark:` variants follow this class instead of the
+ * OS setting, since the app is always dark (the class is set on <html>).
+ */
+@custom-variant dark (&:where(.dark, .dark *));
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--ink);
   font-family: var(--font-sans), system-ui, sans-serif;
+}
+
+/* One visible, consistent keyboard focus ring everywhere. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Brand gradient, for the primary action and highlights. */
+.bg-brand {
+  background-image: linear-gradient(135deg, var(--accent), var(--accent-2));
+}
+.text-brand {
+  background-image: linear-gradient(135deg, var(--accent), var(--accent-2));
+  background-clip: text;
+  color: transparent;
+}
+
+/* Native range inputs in the brand color. */
+input[type="range"] {
+  accent-color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

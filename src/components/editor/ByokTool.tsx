@@ -1,5 +1,6 @@
 "use client";
 
+import { Lock } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { parseChapters, parseTranslation, SYSTEM, transcriptForPrompt, translationPrompt, writingPrompt, type WritingTask } from "@/lib/ai/byok/prompts";
 import { complete, listModels, PROVIDERS, type ProviderId } from "@/lib/ai/byok/providers";
@@ -159,7 +160,7 @@ export function ByokTool() {
             />
           </label>
           <p className="rounded bg-emerald-500/10 px-2 py-1 text-emerald-700 dark:text-emerald-400">
-            🔒 Stored on this device only (this browser&apos;s storage). Sent only to {provider.name}, never to Vidzart.
+            <Lock className="mr-1 inline size-3" aria-hidden /> Stored on this device only (this browser&apos;s storage). Sent only to {provider.name}, never to Vidzart.
           </p>
           <label className="flex flex-col gap-1">
             <span className="opacity-60">Model</span>
