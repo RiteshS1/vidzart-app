@@ -16,7 +16,7 @@ describe("generateAutoZooms", () => {
   });
 
   it("zooms in before a click and holds after it", () => {
-    const [zoom] = generateAutoZooms(log([click(3_000, 250, 750)]), 10_000);
+    const [zoom] = generateAutoZooms(log([click(3_000, 250, 750)]), 10_000, { follow: false });
     expect(zoom).toMatchObject({
       type: "zoom",
       origin: "auto",
@@ -28,7 +28,7 @@ describe("generateAutoZooms", () => {
   });
 
   it("groups nearby clicks into one zoom aimed at their middle", () => {
-    const zooms = generateAutoZooms(log([click(1_000, 400, 400), click(2_000, 500, 400), click(3_000, 450, 500)]), 10_000);
+    const zooms = generateAutoZooms(log([click(1_000, 400, 400), click(2_000, 500, 400), click(3_000, 450, 500)]), 10_000, { follow: false });
     expect(zooms).toHaveLength(1);
     expect(zooms[0]!.target).toEqual({ mode: "fixed", x: 0.45, y: 0.45 });
     // spread 0.1 + margin 0.2 → visible 0.3 → scale capped by the 1.8 default
@@ -46,7 +46,7 @@ describe("generateAutoZooms", () => {
   });
 
   it("lowers the scale so spread-out clicks all stay visible", () => {
-    const [zoom] = generateAutoZooms(log([click(1_000, 300, 500), click(1_500, 600, 500)]), 10_000);
+    const [zoom] = generateAutoZooms(log([click(1_000, 300, 500), click(1_500, 600, 500)]), 10_000, { follow: false });
     // spread 0.3 + margin 0.2 = 0.5 visible → scale 2 capped to default 1.8; check the cap math
     expect(zoom!.scale).toBeLessThanOrEqual(1 / 0.5);
   });
@@ -61,7 +61,25 @@ describe("generateAutoZooms", () => {
     const [zoom] = generateAutoZooms(
       log([{ t: 0, type: "resize", width: 2000, height: 1000, devicePixelRatio: 1 }, click(2_000, 1500, 500)]),
       10_000,
+      { follow: false },
     );
     expect(zoom!.target).toEqual({ mode: "fixed", x: 0.75, y: 0.5 });
+  });
+
+  it("follows the cursor by default (Cursorful style)", () => {
+    const [zoom] = generateAutoZooms(log([click(3_000, 250, 750)]), 10_000);
+    expect(zoom!.target).toEqual({ mode: "follow" });
+    expect(zoom!.scale).toBe(1.8);
+  });
+
+  it("turns double and triple clicks into one zoom, using button presses", () => {
+    const down = (t: number): VidzEvent => ({ t, type: "down", x: 500, y: 500, button: 0 });
+    const zooms = generateAutoZooms(
+      // a triple click (3 presses + 3 clicks within 600 ms), then a double click 10 s later
+      log([down(1000), click(1050, 500, 500), down(1250), click(1300, 500, 500), down(1500), click(1550, 500, 500), down(11_000), down(11_200)]),
+      15_000,
+    );
+    expect(zooms).toHaveLength(2);
+    expect(zooms[0]!.start).toBe(1000 - 800); // lead-in before the FIRST press
   });
 });

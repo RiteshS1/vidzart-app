@@ -13,6 +13,7 @@
 // clamped so it never goes past the frame's edges (no black borders).
 
 import type { Segment, ZoomSegment } from "@/lib/project/types";
+import { followPath } from "./cameraPath";
 import { easeInOutCubic, lerp } from "./easing";
 
 /** Normalized point: 0–1 across the source frame. */
@@ -71,7 +72,9 @@ export function cameraAt(
   const target =
     zoom.target.mode === "fixed"
       ? { x: zoom.target.x, y: zoom.target.y }
-      : (cursorAt?.(sourceMs) ?? { x: 0.5, y: 0.5 }); // follow without events → center
+      : cursorAt
+        ? followPath(zoom, cursorAt).at(sourceMs) // smooth, dead-zone camera (cameraPath.ts)
+        : { x: 0.5, y: 0.5 }; // follow without events → center
   return { scale, center: clampCenter(target, scale) };
 }
 

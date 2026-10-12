@@ -7,8 +7,9 @@
 //      in one form becomes one zoom instead of a jittery series.
 //   2. For each group, zoom in a little BEFORE the first click (so the ease-in
 //      has finished when the click happens) and hold a little AFTER the last.
-//   3. Aim at the middle of the group, and cap the scale so every click in it
-//      stays on screen with some margin.
+//   3. Follow the cursor while zoomed in (the Cursorful / Screen Studio
+//      feel; see cameraPath.ts), or with `follow: false` aim at the middle of
+//      the group, capping the scale so every click in it stays on screen.
 //   4. Never overlap: if two groups' zooms would overlap, split the time
 //      between them at the midpoint.
 
@@ -35,6 +36,8 @@ export interface AutoZoomOptions {
   easeMs: number;
   /** project.source.eventsOffsetMs */
   offsetMs: number;
+  /** Zooms follow the cursor (true) or point at the middle of their clicks. */
+  follow: boolean;
 }
 
 export const DEFAULT_AUTO_ZOOM: AutoZoomOptions = {
@@ -47,6 +50,7 @@ export const DEFAULT_AUTO_ZOOM: AutoZoomOptions = {
   minScale: 1.25,
   easeMs: 700,
   offsetMs: 0,
+  follow: true,
 };
 
 interface Click {
@@ -62,10 +66,15 @@ export function generateAutoZooms(
 ): ZoomSegment[] {
   const o = { ...DEFAULT_AUTO_ZOOM, ...options };
 
-  // Normalized click positions (normalizedSamples accounts for resizes),
-  // shifted onto the video's timeline.
-  const clicks: Click[] = normalizedSamples(log)
-    .filter((sample) => sample.type === "click")
+  // Normalized press positions (normalizedSamples accounts for resizes),
+  // shifted onto the video's timeline. Button presses ("down") rather than
+  // "click" events: a double or triple click is several presses a few
+  // hundred ms apart, which the grouping below turns into ONE zoom. Logs
+  // without "down" events (older/hand-made ones) fall back to clicks.
+  const samples = normalizedSamples(log);
+  const pressType = samples.some((s) => s.type === "down") ? "down" : "click";
+  const clicks: Click[] = samples
+    .filter((sample) => sample.type === pressType)
     .map((sample) => ({ t: sample.t + o.offsetMs, x: sample.x, y: sample.y }))
     .filter((click) => click.t >= 0 && click.t <= durationMs);
 
@@ -84,7 +93,9 @@ export function generateAutoZooms(
   const zooms: ZoomSegment[] = [];
   for (const group of groups) {
     const box = bounds(group);
-    const scale = Math.min(o.scale, 1 / (Math.max(box.width, box.height) + o.margin));
+    // Following the cursor keeps every click in view by moving the camera,
+    // so the scale only needs capping when the camera stays put.
+    const scale = o.follow ? o.scale : Math.min(o.scale, 1 / (Math.max(box.width, box.height) + o.margin));
     if (scale < o.minScale) continue;
     zooms.push({
       id: newSegmentId(),
@@ -92,7 +103,7 @@ export function generateAutoZooms(
       start: Math.max(0, group[0]!.t - o.leadInMs),
       end: Math.min(durationMs, group.at(-1)!.t + o.holdMs),
       scale: Math.round(scale * 10) / 10,
-      target: { mode: "fixed", x: box.x + box.width / 2, y: box.y + box.height / 2 },
+      target: o.follow ? { mode: "follow" } : { mode: "fixed", x: box.x + box.width / 2, y: box.y + box.height / 2 },
       easeInMs: o.easeMs,
       easeOutMs: o.easeMs,
       origin: "auto",
