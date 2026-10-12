@@ -69,7 +69,7 @@ const ANIMATIONS: { value: TextAnimation; label: string }[] = [
   { value: "pop", label: "Pop" },
   { value: "typewriter", label: "Typewriter" },
 ];
-const COLORS = ["#ffffff", "#111118", "#6d5dfc", "#e27bc0", "#facc15", "#4ade80"];
+const COLORS = ["#ffffff", "#111118", "#ffb224", "#ef4444", "#38bdf8", "#4ade80"];
 
 export function TextInspector({ text }: { text: TextSegment }) {
   const { store } = useEditorContext();
@@ -148,7 +148,7 @@ export function TextInspector({ text }: { text: TextSegment }) {
             checked={Boolean(text.style.background)}
             onChange={(e) => {
               const next = { ...text.style };
-              if (e.target.checked) next.background = text.style.color === "#ffffff" ? "#6d5dfc" : "#ffffff";
+              if (e.target.checked) next.background = text.style.color === "#ffffff" ? "#111118" : "#ffffff";
               else delete next.background;
               update({ style: next });
             }}

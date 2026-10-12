@@ -163,8 +163,8 @@ function TopBar({ session, onClose }: { session: Session; onClose: () => void })
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
       <Link href="/" className="flex items-center gap-2 font-semibold tracking-tight" aria-label="Vidzart home">
-        <span className="bg-brand flex size-7 items-center justify-center rounded-lg" aria-hidden>
-          <Clapperboard className="size-4 text-white" />
+        <span className="flex size-7 items-center justify-center rounded-lg bg-accent" aria-hidden>
+          <Clapperboard className="size-4 text-accent-ink" />
         </span>
         <span className="hidden sm:inline">Vidzart</span>
       </Link>

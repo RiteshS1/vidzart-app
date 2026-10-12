@@ -36,7 +36,7 @@ export function TaskProgress({ progress, onCancel }: { progress: { stage: string
       </div>
       <div className="h-1.5 overflow-hidden rounded-full bg-black/10 dark:bg-white/10">
         <div
-          className={`h-full bg-violet-500 ${progress.fraction === undefined ? "w-1/3 animate-pulse" : ""}`}
+          className={`h-full bg-accent ${progress.fraction === undefined ? "w-1/3 animate-pulse" : ""}`}
           style={progress.fraction === undefined ? undefined : { width: `${progress.fraction * 100}%` }}
         />
       </div>

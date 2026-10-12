@@ -15,8 +15,8 @@ export function SiteHeader({ current }: { current?: "projects" | "record" }) {
     <header className="sticky top-0 z-40 border-b border-line bg-bg/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-6xl items-center gap-2 px-4 sm:px-6">
         <Link href="/" className="mr-2 flex items-center gap-2 font-semibold tracking-tight">
-          <span className="bg-brand flex size-7 items-center justify-center rounded-lg" aria-hidden>
-            <Clapperboard className="size-4 text-white" />
+          <span className="flex size-7 items-center justify-center rounded-lg bg-accent" aria-hidden>
+            <Clapperboard className="size-4 text-accent-ink" />
           </span>
           Vidzart
         </Link>
@@ -40,7 +40,7 @@ export function SiteHeader({ current }: { current?: "projects" | "record" }) {
         >
           <Coffee className="size-4" aria-hidden /> Support
         </a>
-        <Link href="/editor" className="bg-brand ml-2 rounded-lg px-3.5 py-1.5 text-sm font-semibold text-white hover:brightness-110">
+        <Link href="/editor" className="ml-2 rounded-lg bg-ink px-3.5 py-1.5 text-sm font-semibold text-bg hover:bg-white">
           Open editor
         </Link>
       </div>

@@ -272,7 +272,7 @@ export function Timeline({ source }: { source: Blob }) {
           {/* clips: filmstrip; click = seek, drag = select a range */}
           <div
             data-testid="timeline-track"
-            className="relative cursor-text overflow-hidden rounded-md bg-indigo-500/25 ring-1 ring-indigo-500/40"
+            className="relative cursor-text overflow-hidden rounded-md bg-surface-2 ring-1 ring-line-strong"
             style={{ height: TRACK_HEIGHT }}
             onPointerDown={onTrackDown}
             onPointerMove={onTrackMove}
@@ -441,7 +441,7 @@ function MusicLane({ width, outDuration }: { width: number; outDuration: number 
   return (
     <div data-testid="music-lane" className="relative h-8 rounded-md bg-black/[.04] dark:bg-white/[.05]">
       <div
-        className="absolute inset-y-1 left-0 overflow-hidden rounded-sm bg-emerald-700/70"
+        className="absolute inset-y-1 left-0 overflow-hidden rounded-sm bg-emerald-800/80"
         style={{ width: `${(coverMs / outDuration) * 100}%` }}
         title={music?.name}
       >

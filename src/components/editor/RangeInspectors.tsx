@@ -38,7 +38,7 @@ function InspectorShell(props: { title: string; id: string; tone: string; childr
 export function SpeedInspector({ speed }: { speed: SpeedSegment }) {
   const { store } = useEditorContext();
   return (
-    <InspectorShell title="Speed" id={speed.id} tone="border-sky-600/40 bg-sky-600/[.06]">
+    <InspectorShell title="Speed" id={speed.id} tone="border-line bg-surface-2/40">
       <div className="flex flex-col gap-2">
         <span className={panelLabel}>Play this part at</span>
         <div className="grid grid-cols-4 gap-1" role="group" aria-label="Speed">
@@ -69,7 +69,7 @@ export function SpeedInspector({ speed }: { speed: SpeedSegment }) {
 export function BlurInspector({ blur }: { blur: BlurSegment }) {
   const { store } = useEditorContext();
   return (
-    <InspectorShell title="Blur" id={blur.id} tone="border-slate-500/40 bg-slate-500/[.06]">
+    <InspectorShell title="Blur" id={blur.id} tone="border-line bg-surface-2/40">
       <div className="flex flex-col gap-2">
         <span className={panelLabel}>Area to hide</span>
         <RectPicker
@@ -213,13 +213,13 @@ export function SelectedSegmentInspector() {
       return <BlurInspector key={selected.id} blur={selected} />;
     case "shape":
       return (
-        <InspectorShell key={selected.id} title="Shape" id={selected.id} tone="border-cyan-500/40 bg-cyan-500/[.05]">
+        <InspectorShell key={selected.id} title="Shape" id={selected.id} tone="border-line bg-surface-2/40">
           <ShapeInspector shape={selected} />
         </InspectorShell>
       );
     case "text":
       return (
-        <InspectorShell key={selected.id} title="Text" id={selected.id} tone="border-amber-500/40 bg-amber-500/[.05]">
+        <InspectorShell key={selected.id} title="Text" id={selected.id} tone="border-line bg-surface-2/40">
           <TextInspector text={selected} />
         </InspectorShell>
       );

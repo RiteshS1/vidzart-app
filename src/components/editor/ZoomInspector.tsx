@@ -18,7 +18,7 @@ export function ZoomInspector({ zoom }: { zoom: ZoomSegment }) {
 
   return (
     <section
-      className="flex flex-col gap-4 rounded-lg border border-violet-500/40 bg-violet-500/[.06] p-3"
+      className="flex flex-col gap-4 rounded-lg border border-line bg-surface-2/40 p-3"
       aria-label="Zoom"
     >
       <div className="flex items-center justify-between">
@@ -137,7 +137,7 @@ function TargetPicker(props: { scale: number; target: { x: number; y: number }; 
       ctx.rect(0, 0, width, height);
       ctx.rect(view.x * width, view.y * height, view.width * width, view.height * height);
       ctx.fill("evenodd");
-      ctx.strokeStyle = "#a78bfa";
+      ctx.strokeStyle = "#ffb224";
       ctx.lineWidth = 2;
       ctx.strokeRect(view.x * width, view.y * height, view.width * width, view.height * height);
       // Crosshair at the chosen point.
@@ -195,7 +195,7 @@ function InspectorSlider(props: {
         step={props.step}
         value={props.value}
         onChange={(e) => props.onChange(Number(e.target.value))}
-        className="accent-violet-500"
+        className="w-full"
       />
     </label>
   );

@@ -49,7 +49,7 @@ export function Transport() {
       </button>
       <button
         type="button"
-        className="bg-brand flex size-10 cursor-pointer items-center justify-center rounded-full text-white shadow-[0_0_20px_-6px_var(--accent)] transition hover:brightness-110"
+        className="flex size-10 cursor-pointer items-center justify-center rounded-full bg-ink text-bg transition hover:bg-white"
         onClick={() => controller.toggle()}
         aria-label={playing ? "Pause" : "Play"}
         title="Play / pause (Space)"

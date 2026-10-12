@@ -16,7 +16,7 @@ const ICONS: Record<ShapeSegment["kind"], typeof Square> = {
   ellipse: Circle,
   spotlight: Focus,
 };
-const COLORS = ["#facc15", "#ef4444", "#6d5dfc", "#e27bc0", "#4ade80", "#ffffff"];
+const COLORS = ["#ffb224", "#ef4444", "#38bdf8", "#4ade80", "#ffffff", "#111118"];
 
 export function ShapePanel() {
   const { store, controller } = useEditorContext();

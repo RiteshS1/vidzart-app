@@ -206,7 +206,7 @@ export const TEXT_PRESETS: { name: string; segment: Omit<TextSegment, "id" | "ty
       text: "Your name\nYour role",
       x: 0.24,
       y: 0.84,
-      style: { font: "sans", size: 0.04, weight: 600, color: "#ffffff", background: "#6d5dfc", align: "left" },
+      style: { font: "sans", size: 0.04, weight: 600, color: "#1a1300", background: "#ffb224", align: "left" },
       animation: { in: "slide-up", out: "fade" },
     },
   },

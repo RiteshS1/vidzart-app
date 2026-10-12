@@ -2,7 +2,7 @@ import type { ProjectSettings, VidzProject } from "./types";
 
 export const DEFAULT_SETTINGS: ProjectSettings = {
   aspectRatio: "16:9",
-  background: { type: "gradient", from: "#6d5dfc", to: "#d16ba5", angle: 135 },
+  background: { type: "color", color: "#26262b" }, // "Studio"
   padding: 0.08,
   cornerRadius: 0.02,
   shadow: { enabled: true, blur: 0.04, opacity: 0.45, offsetY: 0.012 },

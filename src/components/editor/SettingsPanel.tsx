@@ -18,7 +18,7 @@ const CLICK_EFFECTS: { value: ProjectSettings["clickEffect"]["type"]; label: str
   { value: "ripple", label: "Ripple" },
   { value: "pulse", label: "Pulse" },
 ];
-const EFFECT_COLORS = ["#ffffff", "#111111", "#6d5dfc", "#facc15"];
+const EFFECT_COLORS = ["#ffffff", "#111111", "#ffb224", "#38bdf8"];
 /** "Hide when idle" fades the cursor after this long without moving. */
 const IDLE_HIDE_MS = 2000;
 

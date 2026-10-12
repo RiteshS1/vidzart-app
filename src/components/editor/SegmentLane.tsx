@@ -59,7 +59,7 @@ const LANES: Record<LaneKind, LaneConfig> = {
     hint: "Drag here to add a zoom",
     label: (z) => (z.type === "zoom" ? `${z.origin === "auto" ? "auto " : ""}${z.scale.toFixed(1)}×` : ""),
     describe: (z) => (z.type === "zoom" ? `Zoom ${z.scale.toFixed(1)}× from ${secs(z.start)} to ${secs(z.end)}` : ""),
-    colors: ["bg-violet-500/75 hover:bg-violet-500", "bg-violet-500 ring-2 ring-violet-300"],
+    colors: ["bg-amber-600/80 hover:bg-amber-600", "bg-amber-600 ring-2 ring-amber-200"],
     // Its fully zoomed-in moment.
     seekTo: (z) => (z.type === "zoom" ? Math.min(z.start + z.easeInMs, (z.start + z.end) / 2) : z.start),
   },
@@ -71,7 +71,7 @@ const LANES: Record<LaneKind, LaneConfig> = {
     hint: "Drag here to speed up a part",
     label: (s) => (s.type === "speed" ? `${s.rate}× speed` : ""),
     describe: (s) => (s.type === "speed" ? `Speed ${s.rate}× from ${secs(s.start)} to ${secs(s.end)}` : ""),
-    colors: ["bg-sky-600/75 hover:bg-sky-600", "bg-sky-600 ring-2 ring-sky-300"],
+    colors: ["bg-teal-700/80 hover:bg-teal-700", "bg-teal-700 ring-2 ring-teal-200"],
     seekTo: (s) => s.start,
   },
   blur: {
@@ -93,7 +93,7 @@ const LANES: Record<LaneKind, LaneConfig> = {
     hint: "Drag here to add a shape",
     label: (s) => (s.type === "shape" ? { arrow: "Arrow", rect: "Box", ellipse: "Circle", spotlight: "Spotlight" }[s.kind] : ""),
     describe: (s) => (s.type === "shape" ? `Shape ${s.kind} from ${secs(s.start)} to ${secs(s.end)}` : ""),
-    colors: ["bg-cyan-700/80 hover:bg-cyan-700", "bg-cyan-700 ring-2 ring-cyan-300"],
+    colors: ["bg-sky-700/80 hover:bg-sky-700", "bg-sky-700 ring-2 ring-sky-200"],
     seekTo: (s) => Math.min(s.start + 500, (s.start + s.end) / 2),
   },
   text: {
@@ -104,7 +104,7 @@ const LANES: Record<LaneKind, LaneConfig> = {
     hint: "Drag here to add text",
     label: (s) => (s.type === "text" ? s.text.split("\n")[0]! : ""),
     describe: (s) => (s.type === "text" ? `Text "${s.text.split("\n")[0]}" from ${secs(s.start)} to ${secs(s.end)}` : ""),
-    colors: ["bg-amber-600/80 hover:bg-amber-600", "bg-amber-600 ring-2 ring-amber-300"],
+    colors: ["bg-stone-500/80 hover:bg-stone-500", "bg-stone-500 ring-2 ring-stone-200"],
     // After the in-animation, where the text is fully visible.
     seekTo: (s) => Math.min(s.start + 500, (s.start + s.end) / 2),
   },

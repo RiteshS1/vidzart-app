@@ -15,7 +15,7 @@ export const iconButton = `${base} size-9 border border-line bg-surface-2 text-i
 export const ghostButton = `${base} h-8 px-2.5 text-ink-muted hover:bg-surface-3 hover:text-ink`;
 
 /** The one primary action per view (Export, Generate, …). */
-export const primaryButton = `${base} h-9 bg-brand px-4 font-semibold text-white shadow-[0_0_24px_-6px_var(--accent)] hover:brightness-110 active:brightness-95`;
+export const primaryButton = `${base} h-9 bg-ink px-4 font-semibold text-bg hover:bg-white active:bg-ink/90`;
 
 /** Small uppercase section label. */
 export const panelLabel = "text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-muted";

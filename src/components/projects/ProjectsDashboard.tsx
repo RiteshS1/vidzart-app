@@ -70,7 +70,7 @@ export function ProjectsDashboard() {
               <HardDrive className="size-3.5" aria-hidden /> {formatBytes(usage.used)} of {formatBytes(usage.quota)} available
             </span>
             <span className="h-1.5 overflow-hidden rounded-full bg-surface-3">
-              <span className="block h-full bg-brand" style={{ width: `${Math.max(1, (usage.used / usage.quota) * 100)}%` }} />
+              <span className="block h-full bg-accent" style={{ width: `${Math.max(1, (usage.used / usage.quota) * 100)}%` }} />
             </span>
           </div>
         )}

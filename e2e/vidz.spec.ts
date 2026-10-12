@@ -302,7 +302,7 @@ test("saves a project and opens it again with all edits", async ({ page }, testI
   const contents = await readVidz(new Blob([new Uint8Array(saved)]));
   expect(contents.manifest.createdBy.app).toBe("vidzart-app");
   expect(contents.project.segments.map((s) => s.type).sort()).toEqual(["trim", "zoom"]);
-  expect(contents.project.settings.background).toMatchObject({ type: "gradient", from: "#2193b0" });
+  expect(contents.project.settings.background).toEqual({ type: "color", color: "#1e4d5c" });
   expect(contents.video.size).toBe(video.length);
 
   // And reopen it in the editor.

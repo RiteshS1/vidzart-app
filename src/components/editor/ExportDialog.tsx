@@ -173,7 +173,7 @@ export function ExportDialog(props: { video: File; events: VidzEvents | null; na
             aria-valuemax={100}
             aria-valuenow={Math.round(state.fraction * 100)}
           >
-            <div className="h-full bg-violet-500 transition-[width]" style={{ width: `${state.fraction * 100}%` }} />
+            <div className="h-full bg-accent transition-[width]" style={{ width: `${state.fraction * 100}%` }} />
           </div>
           <p className="flex justify-between text-sm opacity-70">
             <span>Rendering {Math.round(state.fraction * 100)}%</span>
