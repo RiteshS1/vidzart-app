@@ -312,3 +312,34 @@ test.describe("zooms", () => {
     await expect.poll(() => canvasFingerprint(page)).not.toBe(centered);
   });
 });
+
+test.describe("backgrounds", () => {
+  test("genres of gradients and colors, plus a custom picker", async ({ page }) => {
+    await openEditor(page);
+    const genres = page.getByRole("group", { name: "Background genre" });
+    for (const genre of ["Studio", "Aesthetic", "Pastel", "Nature", "Warm", "Cool", "Neon", "Night", "Custom"]) {
+      await expect(genres.getByRole("button", { name: genre })).toBeVisible();
+    }
+
+    // An aesthetic gradient: the preview's corner turns from the default
+    // studio gray into the gradient's start color (#ff9a9e).
+    await genres.getByRole("button", { name: "Aesthetic" }).click();
+    await page.getByRole("button", { name: "Background: Sunset Haze" }).click();
+    await expect.poll(async () => (await pixel(page, 0.01, 0.01)).slice(0, 3)[0]).toBeGreaterThan(220);
+
+    // Custom solid color through the hex field.
+    await genres.getByRole("button", { name: "Custom" }).click();
+    await page.getByRole("button", { name: "Solid color" }).click();
+    const hex = page.getByRole("textbox", { name: "Hex color" });
+    await hex.fill("#12ab34");
+    await hex.blur();
+    await expect.poll(async () => (await pixel(page, 0.01, 0.01)).slice(0, 3)).toEqual([0x12, 0xab, 0x34]);
+
+    // Custom gradient: from/to colors and an angle.
+    await page.getByRole("button", { name: "Gradient", exact: true }).click();
+    await page.getByRole("group", { name: "Gradient color" }).getByRole("button", { name: "To" }).click();
+    await page.getByRole("textbox", { name: "Hex color" }).fill("#ff0000");
+    await page.getByRole("textbox", { name: "Hex color" }).blur();
+    await expect.poll(async () => (await pixel(page, 0.99, 0.99)).slice(0, 3)[0]).toBeGreaterThan(200);
+  });
+});

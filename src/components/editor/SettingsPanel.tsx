@@ -1,7 +1,9 @@
 "use client";
 
-import type { AspectRatio, ProjectSettings } from "@/lib/project/types";
-import { BACKGROUND_PRESETS, backgroundToCss } from "@/lib/render/backgrounds";
+import { useState } from "react";
+import type { AspectRatio, Background, ProjectSettings } from "@/lib/project/types";
+import { BACKGROUND_GENRES, backgroundToCss, genreOf, sameBackground } from "@/lib/render/backgrounds";
+import { ColorPicker } from "./ColorPicker";
 import { useEditor, useEditorContext } from "./EditorContext";
 import { panelLabel, segment } from "./styles";
 
@@ -55,28 +57,7 @@ export function SettingsPanel() {
         </div>
       </fieldset>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className={panelLabel}>Background</legend>
-        <div className="mt-2 grid grid-cols-4 gap-2">
-          {BACKGROUND_PRESETS.map((preset) => {
-            const active = JSON.stringify(preset.background) === JSON.stringify(settings.background);
-            return (
-              <button
-                key={preset.name}
-                type="button"
-                title={preset.name}
-                aria-label={`Background: ${preset.name}`}
-                aria-pressed={active}
-                onClick={() => update({ background: preset.background })}
-                className={`aspect-square rounded-md ring-offset-2 ring-offset-background ${
-                  active ? "ring-2 ring-foreground" : "ring-1 ring-black/10 dark:ring-white/15"
-                }`}
-                style={{ background: backgroundToCss(preset.background) }}
-              />
-            );
-          })}
-        </div>
-      </fieldset>
+      <BackgroundPicker settings={settings} update={update} />
 
       <Slider
         label="Padding"
@@ -115,6 +96,135 @@ export function SettingsPanel() {
         )}
       </fieldset>
     </aside>
+  );
+}
+
+/** Genres of built-in backgrounds, plus a custom solid color or gradient (with a color picker). */
+function BackgroundPicker({
+  settings,
+  update,
+}: {
+  settings: ProjectSettings;
+  update: (patch: Partial<ProjectSettings>, coalesceKey?: string) => void;
+}) {
+  const current = settings.background;
+  const [genreId, setGenreId] = useState<string>(() => genreOf(current)?.id ?? (current.type === "image" ? "studio" : "custom"));
+  const [stop, setStop] = useState<"from" | "to">("from");
+  const genre = BACKGROUND_GENRES.find((g) => g.id === genreId);
+
+  const asGradient = (): Extract<Background, { type: "gradient" }> =>
+    current.type === "gradient"
+      ? current
+      : { type: "gradient", from: current.type === "color" ? current.color : "#26262b", to: "#6dd5ed", angle: 135 };
+
+  return (
+    <fieldset className="flex flex-col gap-3">
+      <legend className={panelLabel}>Background</legend>
+      <div className="mt-2 flex flex-wrap gap-1" role="group" aria-label="Background genre">
+        {[...BACKGROUND_GENRES.map((g) => ({ id: g.id, label: g.label })), { id: "custom", label: "Custom" }].map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            aria-pressed={genreId === g.id}
+            onClick={() => setGenreId(g.id)}
+            className={segment(genreId === g.id)}
+          >
+            {g.label}
+          </button>
+        ))}
+      </div>
+
+      {genre && (
+        <div className="grid grid-cols-4 gap-2">
+          {genre.presets.map((preset) => {
+            const active = sameBackground(preset.background, current);
+            return (
+              <button
+                key={preset.name}
+                type="button"
+                title={preset.name}
+                aria-label={`Background: ${preset.name}`}
+                aria-pressed={active}
+                onClick={() => update({ background: preset.background })}
+                className={`aspect-square cursor-pointer rounded-lg ring-offset-2 ring-offset-surface transition-transform duration-150 hover:scale-105 ${
+                  active ? "ring-2 ring-ink" : "ring-1 ring-line-strong"
+                }`}
+                style={{ background: backgroundToCss(preset.background) }}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      {genreId === "custom" && (
+        <div className="flex flex-col gap-3">
+          <div className="grid grid-cols-2 gap-1" role="group" aria-label="Custom background type">
+            <button
+              type="button"
+              aria-pressed={current.type === "color"}
+              className={segment(current.type === "color")}
+              onClick={() => update({ background: { type: "color", color: current.type === "gradient" ? current.from : current.type === "color" ? current.color : "#26262b" } })}
+            >
+              Solid color
+            </button>
+            <button
+              type="button"
+              aria-pressed={current.type === "gradient"}
+              className={segment(current.type === "gradient")}
+              onClick={() => update({ background: asGradient() })}
+            >
+              Gradient
+            </button>
+          </div>
+
+          {current.type === "color" && (
+            <ColorPicker
+              label="Background color"
+              value={current.color}
+              onChange={(color) => update({ background: { type: "color", color } }, "bgColor")}
+            />
+          )}
+
+          {current.type === "gradient" && (
+            <>
+              <div className="grid grid-cols-3 gap-1" role="group" aria-label="Gradient color">
+                <button type="button" aria-pressed={stop === "from"} className={segment(stop === "from")} onClick={() => setStop("from")}>
+                  From
+                </button>
+                <button type="button" aria-pressed={stop === "to"} className={segment(stop === "to")} onClick={() => setStop("to")}>
+                  To
+                </button>
+                <button
+                  type="button"
+                  className={segment(false)}
+                  onClick={() => update({ background: { ...current, from: current.to, to: current.from } })}
+                >
+                  Swap
+                </button>
+              </div>
+              <ColorPicker
+                label={`Gradient ${stop} color`}
+                value={stop === "from" ? current.from : current.to}
+                onChange={(hex) => update({ background: { ...current, [stop]: hex } }, `bgGradient-${stop}`)}
+              />
+              <label className="flex flex-col gap-1.5">
+                <span className="flex justify-between">
+                  <span className={panelLabel}>Angle</span>
+                  <span className="font-mono text-xs text-ink-muted">{current.angle}°</span>
+                </span>
+                <input
+                  type="range"
+                  min={0}
+                  max={360}
+                  value={current.angle}
+                  onChange={(e) => update({ background: { ...current, angle: Number(e.target.value) } }, "bgAngle")}
+                />
+              </label>
+            </>
+          )}
+        </div>
+      )}
+    </fieldset>
   );
 }
 
