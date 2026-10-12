@@ -3,7 +3,9 @@ import { ProjectsDashboard } from "@/components/projects/ProjectsDashboard";
 import { SiteFooter, SiteHeader } from "@/components/site/SiteHeader";
 
 export const metadata: Metadata = {
-  title: "Projects · Vidzart",
+  title: "Projects",
+  robots: { index: false, follow: true },
+  alternates: { canonical: "/projects" },
 };
 
 // Static page; the list itself is read from IndexedDB in the browser.
@@ -11,7 +13,7 @@ export default function ProjectsPage() {
   return (
     <>
       <SiteHeader current="projects" />
-      <main className="flex-1">
+      <main id="main" className="flex-1">
         <ProjectsDashboard />
       </main>
       <SiteFooter />

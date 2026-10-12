@@ -15,6 +15,7 @@ import { HeroDemo } from "@/components/landing/HeroDemo";
 import { LandingScene } from "@/components/landing/LandingScene";
 import { MotionLink } from "@/components/landing/MotionLink";
 import { Timecode } from "@/components/landing/Timecode";
+import { JsonLd, organization, softwareApplication, webSite } from "@/components/site/JsonLd";
 import { LINKS, SiteFooter, SiteHeader } from "@/components/site/SiteHeader";
 
 // The landing page: static HTML (a server component) with client islands
@@ -75,7 +76,8 @@ export default function Home() {
         <style>{`.landing [data-split],.landing [data-reveal]{opacity:1!important}`}</style>
       </noscript>
       <SiteHeader />
-      <main className="flex-1 overflow-x-clip">
+      <JsonLd data={[softwareApplication(), webSite(), organization()]} />
+      <main id="main" className="flex-1 overflow-x-clip">
         {/* Hero */}
         <section className="mx-auto max-w-6xl px-4 pt-14 pb-10 sm:px-6 sm:pt-24">
           <div data-reveal className="flex flex-wrap items-center gap-3 font-mono text-xs text-ink-muted">

@@ -16,6 +16,22 @@ coordinate mapping, encoding, browser/extension quirks). Newest entries at the t
 
 ## Log
 
+### 2026-10-13: SEO on a static export (and why og.png is a real file)
+- **One source of truth:** `src/lib/site.ts` holds the page list, FAQ and changelog; robots,
+  sitemap, RSS, llms.txt, llms-full.txt, the visible FAQ/changelog pages and JSON-LD are all
+  generated from it, so they can't drift. `e2e/seo.spec.ts` audits all of it against the served
+  site (titles, descriptions, canonicals, social cards, one h1, noindex shells, feed validity,
+  llms.txt links resolving).
+- **Metadata routes work with `output: "export"`** (`robots.ts`, `sitemap.ts`, `manifest.ts`,
+  `rss.xml/route.ts`, `llms.txt/route.ts` with `export const dynamic = "force-static"`).
+- **A generated social image is an extensionless file** (`out/opengraph-image`), which a plain
+  static host serves as `application/octet-stream`, so link previews can fail. The PNG is
+  committed as `public/og.png` instead and referenced explicitly.
+- **`next/og` is strict:** a `<div>` with more than one child node needs `display: flex`; the
+  title "{x}." was two text nodes. Use a template string.
+- App shells (`/editor`, `/projects`) are `noindex` and disallowed in robots.txt: thin content
+  for a search engine, and nothing is indexable about them (projects live in the browser).
+
 ### 2026-10-12: Music "breaking every second" (decoder restarts)
 - **Symptom:** with background music added, the export's sound broke up once per second.
 - **Cause:** the mixer works in 1 s blocks and asked Mediabunny for each block's source audio

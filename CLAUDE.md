@@ -60,6 +60,9 @@ What exists now (✓) and what's planned:
 src/
   app/
     page.tsx               ✓ landing page (static; live hero demo + Motion reveals)
+    faq/ privacy/ changelog/ ✓ content pages (data from lib/site.ts; FAQPage JSON-LD)
+    robots.ts sitemap.ts manifest.ts rss.xml/ llms.txt/ llms-full.txt/ ✓ discoverability files
+    (public/og.png = social card; public/.well-known/security.txt; vercel.json = headers)
     projects/              ✓ dashboard of autosaved projects (cards with thumbnails)
     record/                ✓ Phase 0 recorder (getDisplayMedia + MediaRecorder)
     editor/                ✓ client-only editor shell (EditorLoader → dynamic import, ssr:false)

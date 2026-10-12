@@ -53,7 +53,19 @@ export function SiteFooter() {
     <footer className="border-t border-line">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-6 text-xs text-ink-muted sm:px-6">
         <span>Vidzart is free and open source (MIT). No accounts, no uploads.</span>
-        <span className="flex gap-4">
+        <span className="flex flex-wrap gap-4">
+          <a href="/faq" className="hover:text-ink">
+            FAQ
+          </a>
+          <a href="/privacy" className="hover:text-ink">
+            Privacy
+          </a>
+          <a href="/changelog" className="hover:text-ink">
+            Changelog
+          </a>
+          <a href="/rss.xml" className="hover:text-ink">
+            RSS
+          </a>
           <a href={LINKS.app} className="hover:text-ink">
             Web app
           </a>

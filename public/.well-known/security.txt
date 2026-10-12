@@ -1,0 +1,4 @@
+Contact: https://github.com/RiteshS1/vidzart-app/security/advisories/new
+Expires: 2027-10-12T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://vidzart.vercel.app/.well-known/security.txt

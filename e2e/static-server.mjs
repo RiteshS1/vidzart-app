@@ -21,6 +21,8 @@ const types = {
   ".woff2": "font/woff2",
   ".ts": "video/mp2t", // what most hosts send for .ts
   ".wasm": "application/wasm",
+  ".xml": "application/xml; charset=utf-8",
+  ".webmanifest": "application/manifest+json",
 };
 
 async function resolve(pathname) {
