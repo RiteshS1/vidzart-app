@@ -22,6 +22,7 @@ type Status =
   | { kind: "done"; recording: Recording; url: string }
   | { kind: "error"; message: string };
 
+/** The /record page: start/stop a screen recording, preview it, then open it in the editor. */
 export function Recorder() {
   const [status, setStatus] = useState<Status>({ kind: "idle" });
   const [withAudio, setWithAudio] = useState(true);

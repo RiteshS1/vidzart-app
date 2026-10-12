@@ -13,6 +13,7 @@ import { ZoomInspector } from "./ZoomInspector";
 // Side-panel inspectors for the selected speed or blur segment (the zoom
 // one lives in ZoomInspector.tsx), and the switch that picks the right one.
 
+/** Common frame for an inspector: title, a Delete button, and the segment's own controls. */
 function InspectorShell(props: { title: string; id: string; tone: string; children: React.ReactNode }) {
   const { store } = useEditorContext();
   return (
@@ -35,6 +36,7 @@ function InspectorShell(props: { title: string; id: string; tone: string; childr
   );
 }
 
+/** Speed rate picker (preset rates; sped-up parts are silent, see CLAUDE.md "Known export limits"). */
 export function SpeedInspector({ speed }: { speed: SpeedSegment }) {
   const { store } = useEditorContext();
   return (
@@ -66,6 +68,7 @@ export function SpeedInspector({ speed }: { speed: SpeedSegment }) {
   );
 }
 
+/** Where to blur: draw the box on a live frame. */
 export function BlurInspector({ blur }: { blur: BlurSegment }) {
   const { store } = useEditorContext();
   return (
@@ -107,11 +110,12 @@ export function RectPicker({
   testId?: string;
   label?: string;
 }) {
+  // Refs let the animation-frame loop read the latest props without being restarted.
   const modeRef = useRef(mode);
   const { video } = useEditorContext();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const latest = useRef(rect);
-  // The drawing loop reads the latest props without restarting.
+  // Keep the refs current after every render.
   useEffect(() => {
     latest.current = rect;
     modeRef.current = mode;

@@ -7,6 +7,7 @@ import { panelLabel, segment } from "./styles";
 
 // The "Effects" tool: color looks, fades at the ends, transitions at cuts.
 
+/** Color looks. Their actual math lives in lib/render/effects (shared with export). */
 const FILTERS: { value: FilterPreset; label: string }[] = [
   { value: "none", label: "Original" },
   { value: "vivid", label: "Vivid" },
@@ -16,6 +17,7 @@ const FILTERS: { value: FilterPreset; label: string }[] = [
   { value: "cinematic", label: "Cinematic" },
 ];
 
+/** Transitions are drawn at every place footage was cut out (trim seams). */
 const TRANSITIONS: { value: TransitionType; label: string; hint: string }[] = [
   { value: "none", label: "None", hint: "Hard cut" },
   { value: "dip-to-black", label: "Dip", hint: "Dips to black at each cut" },
@@ -23,7 +25,7 @@ const TRANSITIONS: { value: TransitionType; label: string; hint: string }[] = [
   { value: "zoom-punch", label: "Punch", hint: "A quick push-in that hides the jump" },
 ];
 
-/** A colorful sample "frame" for the filter tiles. */
+/** A colorful sample "frame" so each look tile previews its filter without a video. */
 const SAMPLE = "linear-gradient(135deg, #f97316 0%, #facc15 30%, #22c55e 55%, #3b82f6 80%, #a855f7 100%)";
 
 export function EffectsPanel() {
@@ -33,6 +35,8 @@ export function EffectsPanel() {
   const update = (patch: Partial<ProjectSettings>, coalesceKey?: string) =>
     store.edit((p) => ({ ...p, settings: { ...p.settings, ...patch } }), { coalesceKey });
 
+  // These settings are optional in the project file (absent = off), so give
+  // them defaults for the controls without writing anything until changed.
   const filter = settings.filter ?? { preset: "none" as const, intensity: 0.7 };
   const fade = settings.fade ?? { inMs: 0, outMs: 0 };
   const transition = settings.transition ?? { type: "none" as const, durationMs: 500 };
@@ -118,6 +122,7 @@ export function EffectsPanel() {
   );
 }
 
+/** A labelled slider with its current value shown on the right. */
 function Range(props: { label: string; value: number; min: number; max: number; step: number; display: string; onChange: (v: number) => void }) {
   return (
     <label className="flex flex-col gap-1.5">

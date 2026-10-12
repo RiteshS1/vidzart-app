@@ -9,6 +9,7 @@ import { panelLabel, segment } from "./styles";
 
 // The Text tool (presets to add) and the inspector for a selected text.
 
+/** CSS stacks used for the previews in the panel. The exporter maps the same four names to its own fonts. */
 const PREVIEW_FONT: Record<TextStyle["font"], string> = {
   sans: "system-ui, sans-serif",
   serif: "Georgia, serif",
@@ -16,6 +17,7 @@ const PREVIEW_FONT: Record<TextStyle["font"], string> = {
   rounded: "ui-rounded, system-ui, sans-serif",
 };
 
+/** The "Text" tool: one-click presets that add a title, subtitle, callout… at the playhead. */
 export function TextPanel() {
   const { store, controller } = useEditorContext();
   return (
@@ -71,6 +73,7 @@ const ANIMATIONS: { value: TextAnimation; label: string }[] = [
 ];
 const COLORS = ["#ffffff", "#111118", "#ffb224", "#ef4444", "#38bdf8", "#4ade80"];
 
+/** Settings for a selected text: content, font, size, color, box, alignment, position, animations. */
 export function TextInspector({ text }: { text: TextSegment }) {
   const { store } = useEditorContext();
   const update = (patch: Partial<Omit<TextSegment, "id" | "type">>, coalesceKey?: string) =>
@@ -188,7 +191,7 @@ export function TextInspector({ text }: { text: TextSegment }) {
         </div>
       </div>
 
-      {/* Keyboard alternative to dragging the text on the preview. */}
+      {/* Position sliders: the keyboard/touch alternative to dragging the text on the preview. */}
       <div className="grid grid-cols-2 gap-3">
         <Range label="Left ↔ right" value={text.x} min={0} max={1} step={0.005} display={`${Math.round(text.x * 100)}%`} onChange={(x) => update({ x }, "pos")} />
         <Range label="Top ↕ bottom" value={text.y} min={0} max={1} step={0.005} display={`${Math.round(text.y * 100)}%`} onChange={(y) => update({ y }, "pos")} />
@@ -216,6 +219,7 @@ export function TextInspector({ text }: { text: TextSegment }) {
   );
 }
 
+/** A round color chip; `active` draws the accent ring. */
 function Swatch(props: { color: string; active: boolean; label: string; onClick: () => void }) {
   return (
     <button

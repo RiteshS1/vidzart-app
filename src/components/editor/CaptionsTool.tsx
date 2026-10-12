@@ -15,6 +15,11 @@ import { TaskProgress, useTask } from "./TaskProgress";
 import { useEditor, useEditorContext } from "./EditorContext";
 import { button, panelLabel, segment } from "./styles";
 
+// The Captions tool. Two ways to get captions: upload a subtitle file (.srt/.vtt),
+// or generate them on this device with Whisper (locked until AI launches, see
+// lib/features.ts). Either way the result is the same editable cue list,
+// styled and burned in by the renderer and exportable as SRT/VTT.
+
 // Whisper language codes we offer; "" = detect automatically.
 export const LANGUAGES: [code: string, name: string][] = [
   ["", "Detect automatically"],
@@ -31,10 +36,10 @@ export const LANGUAGES: [code: string, name: string][] = [
   ["zh", "Chinese"],
 ];
 
-
 export function CaptionsTool({ video, name }: { video: Blob; name: string }) {
   const { store } = useEditorContext();
   const captions = useEditor((s) => s.project.captions);
+  // `useTask` wraps a worker job: progress to show, a way to cancel, and one task at a time.
   const { run, progress, cancel } = useTask();
   const [model, setModel] = useState<WhisperModel>("base");
   const [language, setLanguage] = useState("");
@@ -43,10 +48,13 @@ export function CaptionsTool({ video, name }: { video: Blob; name: string }) {
   const duration = useEditor((s) => s.project.source.duration);
 
   // Captions from a subtitle file: the editor's captions autofill with them.
+  // Times in the file are those of the ORIGINAL recording (same as the cues),
+  // so they are only clamped to the video's length, never remapped.
   const loadFile = async (file: File) => {
     setMessage(null);
     try {
       const cues = fitCuesToDuration(parseSubtitles(await file.text()), duration);
+      // fitCuesToDuration drops cues that start after the video ends.
       if (cues.length === 0) return setMessage("This file's captions all start after the end of the video.");
       store.edit((p) => ({
         ...p,
@@ -64,7 +72,7 @@ export function CaptionsTool({ video, name }: { video: Blob; name: string }) {
       const result = await run((onProgress) =>
         runAiTask({ type: "transcribe", video, options: { model, language: language || undefined } }, onProgress),
       );
-      if (!result) return;
+      if (!result) return; // canceled
       if (!result.hasAudio) return setMessage("This video has no audio track.");
       if (result.cues.length === 0) return setMessage("No speech found.");
       // One undoable edit; keeps the previous style if regenerating.
@@ -166,6 +174,7 @@ export function CaptionsTool({ video, name }: { video: Blob; name: string }) {
   );
 }
 
+/** The editable cue list, the show/hide switch, style controls and SRT/VTT download. */
 function CaptionEditor({ captions, name }: { captions: Captions; name: string }) {
   const { store, controller, getTimeMap } = useEditorContext();
   const update = (patch: Partial<Captions>, coalesceKey?: string) =>
@@ -173,6 +182,7 @@ function CaptionEditor({ captions, name }: { captions: Captions; name: string })
   const updateCue = (id: string, text: string) =>
     update({ cues: captions.cues.map((c): CaptionCue => (c.id === id ? { ...c, text } : c)) }, `caption-${id}`);
 
+  // Subtitle files are in OUTPUT time (after cuts/speed), so they line up with the exported video.
   const download = (format: "srt" | "vtt") => {
     const cues = cuesToOutput(captions.cues, getTimeMap());
     const text = format === "srt" ? toSrt(cues) : toVtt(cues);
@@ -237,9 +247,15 @@ function CaptionEditor({ captions, name }: { captions: Captions; name: string })
   );
 }
 
+/** Quick color choices; the file format accepts any CSS color, these are just the shortcuts. */
 const TEXT_COLORS = ["#ffffff", "#111118", "#ffb224", "#facc15", "#4ade80", "#38bdf8"];
 const BOX_COLORS = ["rgba(0,0,0,0.72)", "#000000", "#ffffff", "#ffb224", "#1e4d5c", "#ef4444"];
 
+/**
+ * Look of the burned-in captions: presets, font, weight, size, position,
+ * colors and the spoken-word highlight. Presets are partial styles applied on
+ * top of the current one (lib/captions/styles).
+ */
 function CaptionStyleControls(props: {
   style: CaptionStyle;
   hasWords: boolean;
@@ -247,7 +263,9 @@ function CaptionStyleControls(props: {
 }) {
   const { style } = props;
   const set = (patch: Partial<CaptionStyle>, key?: string) => props.onChange({ ...style, ...patch }, key);
+  // "Box" and "Outline" are exclusive ways to keep text readable: a background colour or a stroke.
   const mode: "box" | "outline" = style.background ? "box" : "outline";
+  // A preset counts as selected when applying it would change nothing.
   const matches = (preset: (typeof CAPTION_PRESETS)[number]) =>
     JSON.stringify(applyCaptionPreset(style, preset)) === JSON.stringify(style);
 
@@ -340,6 +358,7 @@ function CaptionStyleControls(props: {
           />
           Highlight the spoken word
         </label>
+        {/* Word highlighting needs per-word times, which only generated captions have. */}
         {!props.hasWords && <p className="text-xs text-ink-muted">Needs word timings: generate captions on this device to get them.</p>}
         {style.highlight && <Swatches colors={TEXT_COLORS} value={style.highlight} label="Highlight color" onPick={(highlight) => set({ highlight })} />}
       </div>
@@ -347,6 +366,7 @@ function CaptionStyleControls(props: {
   );
 }
 
+/** A row of color chips. */
 function Swatches(props: { colors: string[]; value: string; label: string; onPick: (color: string) => void }) {
   return (
     <div className="flex flex-wrap gap-2" role="group" aria-label={props.label}>

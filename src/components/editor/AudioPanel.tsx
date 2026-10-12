@@ -8,6 +8,7 @@ import { button, panelLabel } from "./styles";
 
 // The "Audio" tool: the recording's volume and background music.
 
+/** Sensible starting mix: clearly audible, but under the voice. */
 const DEFAULT_MUSIC: Omit<MusicTrack, "src" | "name"> = {
   volume: 0.35,
   fadeInMs: 1000,
@@ -22,6 +23,7 @@ export function AudioPanel() {
   const inputRef = useRef<HTMLInputElement>(null);
   const music = audio?.music;
 
+  // `coalesceKey` merges a slider drag into one undo step instead of one per pixel.
   const update = (patch: Partial<ProjectAudio>, coalesceKey?: string) =>
     store.edit((p) => ({ ...p, audio: { ...p.audio, ...patch } }), { coalesceKey });
   const updateMusic = (patch: Partial<MusicTrack>, coalesceKey?: string) =>
@@ -29,6 +31,8 @@ export function AudioPanel() {
       coalesceKey,
     });
 
+  // The file goes into the asset store (saved with the project); the project
+  // only keeps its path, so the JSON stays small and undo-able.
   const addMusic = (file: File) => {
     const ext = /\.[a-z0-9]{2,5}$/i.exec(file.name)?.[0]?.toLowerCase() ?? ".mp3";
     // A unique path per file: undoing a replace must bring back the old
@@ -90,6 +94,7 @@ export function AudioPanel() {
                 type="button"
                 aria-label="Remove music"
                 className="cursor-pointer text-ink-muted hover:text-danger"
+                // Copy `audio` before deleting so the previous version (undo history) is untouched.
                 onClick={() =>
                   store.edit((p) => {
                     const next = { ...p, audio: { ...p.audio } };
@@ -121,6 +126,7 @@ export function AudioPanel() {
   );
 }
 
+/** A labelled 0..max slider; the value readout sits on the right. */
 function Range(props: { label: string; value: number; display: string; max?: number; step?: number; onChange: (v: number) => void }) {
   return (
     <label className="flex flex-col gap-1.5">

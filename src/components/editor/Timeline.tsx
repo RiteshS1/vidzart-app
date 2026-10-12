@@ -239,7 +239,7 @@ export function Timeline({ source }: { source: Blob }) {
         </button>
       </div>
 
-      <div className="flex max-h-[max(30dvh,7rem)] overflow-y-auto [@media(max-height:520px)]:max-h-24">
+      <div className="flex max-h-[max(36dvh,7rem)] overflow-y-auto [@media(max-height:520px)]:max-h-24">
       {/* Lane names, aligned with the rows on the right (same heights + gap). */}
       <div className="flex w-20 shrink-0 flex-col gap-1 pr-2 text-[11px] font-medium text-ink-muted" aria-hidden>
         <div className="h-6" />

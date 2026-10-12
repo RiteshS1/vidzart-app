@@ -11,16 +11,19 @@ import { formatTime } from "@/lib/time/formatTime";
 // Thumbnails are made once per project (first frame, in the worker) and
 // stored with it.
 
+/** The /projects page: storage use, ways to start, and a card per saved project. */
 export function ProjectsDashboard() {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
   const [usage, setUsage] = useState<{ used: number; quota: number } | null>(null);
 
+  // `live` guards against setting state after the page was left mid-load.
   useEffect(() => {
     let live = true;
     listStoredProjects().then(
       (list) => live && setProjects(list),
-      () => live && setProjects([]),
+      () => live && setProjects([]), // IndexedDB can be blocked (some private modes): show "no projects"
     );
+    // Browser-reported storage use, to make "saved in this browser" tangible.
     navigator.storage?.estimate?.().then(({ usage: used = 0, quota = 0 }) => live && quota > 0 && setUsage({ used, quota }));
     return () => {
       live = false;
@@ -119,8 +122,10 @@ function StartTile({ href, icon: Icon, title, text }: { href: string; icon: type
   );
 }
 
+/** One project: thumbnail + name link to the editor, with an inline two-step delete. */
 function ProjectCard({ project, onDeleted }: { project: ProjectSummary; onDeleted: () => void }) {
   const [confirming, setConfirming] = useState(false);
+  // A blob: URL for the stored thumbnail; revoked below so it doesn't leak.
   const thumbUrl = useMemo(() => (project.thumbnail ? URL.createObjectURL(project.thumbnail) : null), [project.thumbnail]);
   useEffect(() => () => (thumbUrl ? URL.revokeObjectURL(thumbUrl) : undefined), [thumbUrl]);
   const href = `/editor?project=${encodeURIComponent(project.id)}`;
@@ -177,12 +182,14 @@ function ProjectCard({ project, onDeleted }: { project: ProjectSummary; onDelete
   );
 }
 
+/** Decimal units (KB/MB/GB), matching how browsers report storage quota. */
 function formatBytes(bytes: number): string {
   if (bytes < 1e6) return `${Math.max(1, Math.round(bytes / 1e3))} KB`;
   if (bytes < 1e9) return `${(bytes / 1e6).toFixed(1)} MB`;
   return `${(bytes / 1e9).toFixed(1)} GB`;
 }
 
+/** "Edited 5 min ago" style label; falls back to a date after a day. */
 function timeAgo(ms: number): string {
   const minutes = Math.round((Date.now() - ms) / 60_000);
   if (minutes < 1) return "Edited just now";

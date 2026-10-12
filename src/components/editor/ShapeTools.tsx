@@ -10,6 +10,7 @@ import { panelLabel, segment } from "./styles";
 
 // The Shapes tool (arrow, box, circle, spotlight) and its inspector.
 
+/** Icon per shape kind, for the "Add" tiles. */
 const ICONS: Record<ShapeSegment["kind"], typeof Square> = {
   arrow: ArrowUpRight,
   rect: Square,
@@ -20,9 +21,12 @@ const COLORS = ["#ffb224", "#ef4444", "#38bdf8", "#4ade80", "#ffffff", "#111118"
 
 export function ShapePanel() {
   const { store, controller } = useEditorContext();
+  // Add a shape at the playhead, then select it so its inspector opens. The
+  // new segment is found by diffing ids because editSegments may adjust it.
   const add = (kind: ShapeSegment["kind"]) => {
     const before = new Set(store.getState().project.segments.map((s) => s.id));
     editSegments(store, (segments, duration) => {
+      // Keep the whole default length inside the video even near the end.
       const start = Math.max(0, Math.min(controller.getSourceTime(), duration - DEFAULT_TEXT_MS));
       return addShape(segments, start, start + DEFAULT_TEXT_MS, duration, kind);
     });
@@ -56,12 +60,14 @@ export function ShapePanel() {
   );
 }
 
+/** Settings for a selected shape: kind, area (drawn on a mini frame), color and line width. */
 export function ShapeInspector({ shape }: { shape: ShapeSegment }) {
   const { store } = useEditorContext();
   const update = (patch: Partial<Omit<ShapeSegment, "id" | "type">>, coalesceKey?: string) =>
     editSegments(store, (s) => updateSegment<ShapeSegment>(s, shape.id, patch), {
       coalesceKey: coalesceKey && `${coalesceKey}-${shape.id}`,
     });
+  // A spotlight dims everything OUTSIDE its area, so it has no color or line width.
   const isSpotlight = shape.kind === "spotlight";
 
   return (

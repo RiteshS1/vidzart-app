@@ -130,7 +130,7 @@ BYOK never edits video: it sends transcript text only and gets text back.
 Below `md` (768px) the editor is one column: preview, transport, then the timeline **or** the open
 tool's bottom sheet (they share the space), then the tool bar. From `md` up it's a grid
 (preview | panel+rail, timeline underneath). Timeline lanes are height-capped
-(`max-h-[max(30dvh,7rem)]`) so a short landscape screen can't push the preview away. Controls are
+(`max-h-[max(36dvh,7rem)]`) so a short landscape screen can't push the preview away. Controls are
 44px on touch (`styles.ts`). `e2e/mobile.spec.ts` guards this (390×844 and 844×390).
 
 ### Key design decisions

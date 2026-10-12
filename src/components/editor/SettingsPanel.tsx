@@ -7,6 +7,11 @@ import { ColorPicker } from "./ColorPicker";
 import { useEditor, useEditorContext } from "./EditorContext";
 import { panelLabel, segment } from "./styles";
 
+// The "Style" tool (aspect ratio, background, padding, corners, shadow) and the
+// "Cursor" tool (cursor look, click effect). Everything edits `project.settings`,
+// which both the preview and the exporter read through renderFrame.
+
+/** Output canvas shapes; "Original" keeps the recording's own ratio. */
 const ASPECTS: { value: AspectRatio; label: string }[] = [
   { value: "16:9", label: "16:9" },
   { value: "9:16", label: "9:16" },
@@ -27,7 +32,6 @@ const IDLE_HIDE_MS = 2000;
 export function SettingsPanel() {
   const { store } = useEditorContext();
   const settings = useEditor((s) => s.project.settings);
-
 
   // Slider drags send many updates; the shared coalesce key makes the whole
   // drag a single undo step.
@@ -74,7 +78,6 @@ export function SettingsPanel() {
         onChange={(cornerRadius) => update({ cornerRadius }, "cornerRadius")}
       />
 
-
       <fieldset className="flex flex-col gap-3">
         <legend className={panelLabel}>Shadow</legend>
         <label className="mt-2 flex items-center gap-2 text-sm">
@@ -108,10 +111,14 @@ function BackgroundPicker({
   update: (patch: Partial<ProjectSettings>, coalesceKey?: string) => void;
 }) {
   const current = settings.background;
+  // Which genre tab is showing is UI-only (not saved); start on the one that
+  // contains the current background so it is visible and highlighted.
   const [genreId, setGenreId] = useState<string>(() => genreOf(current)?.id ?? (current.type === "image" ? "studio" : "custom"));
   const [stop, setStop] = useState<"from" | "to">("from");
   const genre = BACKGROUND_GENRES.find((g) => g.id === genreId);
 
+  // The color picker edits a gradient; when the current background is a flat
+  // colour (or an image) start from a sensible gradient built from it.
   const asGradient = (): Extract<Background, { type: "gradient" }> =>
     current.type === "gradient"
       ? current
@@ -241,6 +248,7 @@ export function CursorPanel() {
   );
 }
 
+/** Cursor visibility/size/smoothing, idle hiding, and the click effect (ripple/pulse + colour). */
 function CursorSettings({
   settings,
   update,
@@ -367,6 +375,7 @@ function CursorSettings({
   );
 }
 
+/** A labelled slider; shows a percentage of its range unless `format` says otherwise. */
 function Slider(props: {
   label: string;
   value: number;

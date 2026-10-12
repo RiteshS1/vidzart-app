@@ -20,6 +20,7 @@ const WRITING: { task: WritingTask; label: string }[] = [
   { task: "summary", label: "Summary" },
 ];
 
+/** "Write with AI": pick a provider, paste a key, then generate text or translate the captions. */
 export function ByokTool() {
   const { store, getTimeMap } = useEditorContext();
   const captions = useEditor((s) => s.project.captions);
@@ -50,6 +51,8 @@ export function ByokTool() {
   const setKey = (value: string) => change({ ...settings, keys: { ...settings.keys, [settings.provider]: value.trim() } });
   const setModel = (value: string) => change({ ...settings, models: { ...settings.models, [settings.provider]: value.trim() } });
 
+  // Runs one provider request at a time: a new one aborts the previous, and
+  // an abort is not reported as an error.
   async function withRequest(label: string, fn: (signal: AbortSignal) => Promise<void>) {
     abort.current?.abort();
     const controller = new AbortController();
@@ -76,6 +79,7 @@ export function ByokTool() {
     withRequest(`Writing ${label.toLowerCase()}…`, async (signal) => {
       const transcript = transcriptForPrompt(cuesToOutput(captions!.cues, getTimeMap()));
       const text = await complete({ provider: settings.provider, key, model, system: SYSTEM, prompt: writingPrompt(task, transcript), signal });
+      // Models often wrap chapters in prose; keep only the "0:00 Title" lines when we can.
       const clean = task === "chapters" ? parseChapters(text).join("\n") || text.trim() : text.trim();
       setResult({ title: label, text: clean });
     });

@@ -1,6 +1,7 @@
 import { Clapperboard, Coffee } from "lucide-react";
 import Link from "next/link";
 
+/** External destinations, kept in one place so the header, footer and landing agree. */
 export const LINKS = {
   app: "https://github.com/RiteshS1/vidzart-app",
   extension: "https://github.com/RiteshS1/vidzart-extension",
@@ -9,6 +10,7 @@ export const LINKS = {
 
 /** The header shared by the landing page, the projects dashboard and the recorder. */
 export function SiteHeader({ current }: { current?: "projects" | "record" }) {
+  // Hide secondary links on small screens; "Open editor" always stays visible.
   const item = (active: boolean) =>
     `rounded-md px-3 py-1.5 transition-colors duration-150 ${active ? "bg-surface-2 text-ink" : "text-ink-muted hover:text-ink"}`;
   return (
@@ -48,6 +50,7 @@ export function SiteHeader({ current }: { current?: "projects" | "record" }) {
   );
 }
 
+/** Footer shared by the content pages: legal-ish links, feeds and the repos. */
 export function SiteFooter() {
   return (
     <footer className="border-t border-line">

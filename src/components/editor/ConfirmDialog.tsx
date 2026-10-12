@@ -26,6 +26,7 @@ export function ConfirmDialog(props: {
     return () => dialog?.close();
   }, []);
 
+  // Ignore double clicks while an async confirm runs, and refuse an empty name.
   const confirm = async () => {
     if (busy || (props.input && !value.trim())) return;
     setBusy(true);
@@ -41,7 +42,7 @@ export function ConfirmDialog(props: {
       ref={ref}
       aria-labelledby="confirm-title"
       onCancel={(e) => {
-        e.preventDefault();
+        e.preventDefault(); // Esc: let the parent unmount us rather than the browser closing it silently
         props.onCancel();
       }}
       className="m-auto w-[min(92vw,420px)] rounded-xl bg-surface p-6 text-ink shadow-2xl backdrop:bg-black/70"

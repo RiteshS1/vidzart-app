@@ -8,9 +8,13 @@ import type { ZoomSegment } from "@/lib/project/types";
 import { useEditorContext } from "./EditorContext";
 import { button, panelLabel } from "./styles";
 
+// Inspector for one zoom: scale, where it points (fixed point or follow the
+// cursor) and the ease-in/out times.
+
 export function ZoomInspector({ zoom }: { zoom: ZoomSegment }) {
   const { store, cursorAt } = useEditorContext();
 
+  // Same coalesce key per segment, so dragging one slider is one undo step.
   const update = (patch: Partial<Omit<ZoomSegment, "id" | "type">>, coalesceKey?: string) =>
     editSegments(store, (s) => updateSegment<ZoomSegment>(s, zoom.id, patch), {
       coalesceKey: coalesceKey && `${coalesceKey}-${zoom.id}`,
@@ -131,7 +135,7 @@ function TargetPicker(props: { scale: number; target: { x: number; y: number }; 
       else ctx.clearRect(0, 0, width, height);
       const { scale, target } = latest.current;
       const view = cameraViewport({ scale, center: clampCenter(target, scale) });
-      // Dim everything outside the visible region.
+      // Dim everything outside the region the camera will show at full zoom.
       ctx.fillStyle = "rgba(0,0,0,0.45)";
       ctx.beginPath();
       ctx.rect(0, 0, width, height);

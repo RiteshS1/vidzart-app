@@ -20,6 +20,8 @@ export function Transport() {
   );
   const currentRef = useRef<HTMLSpanElement>(null);
 
+  // Drive the time readout from requestAnimationFrame, straight to the DOM:
+  // putting the playhead in React state would re-render 60 times a second.
   useEffect(() => {
     let frame = 0;
     let last = "";

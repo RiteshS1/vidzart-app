@@ -8,6 +8,11 @@ import { formatTime } from "@/lib/time/formatTime";
 import { useEditorContext } from "./EditorContext";
 import { button, panelLabel, primaryButton, segment } from "./styles";
 
+// The export dialog: choose format, resolution and frame rate, then render in a
+// worker (lib/export) and offer the file. It is a native <dialog>, so focus
+// trapping, Esc and the backdrop come from the browser.
+
+/** `longSide` is the output's longer edge in px; the other edge follows the aspect ratio. */
 const RESOLUTIONS = [
   { label: "720p", longSide: 1280 },
   { label: "1080p", longSide: 1920 },
@@ -15,6 +20,7 @@ const RESOLUTIONS = [
   { label: "4K", longSide: 3840 },
 ];
 
+/** Which screen the dialog shows: pick options → progress → result (or an error to retry from). */
 type State =
   | { kind: "setup" }
   | { kind: "running"; fraction: number; startedAt: number }
@@ -29,6 +35,8 @@ export function ExportDialog(props: { video: File; events: VidzEvents | null; na
   const [longSide, setLongSide] = useState(1920);
   const [format, setFormat] = useState<ExportFormat>("mp4");
   const [fps, setFps] = useState(() => (store.getState().project.source.fps >= 50 ? 60 : 30));
+  // Read once per render only to show the resulting pixel size; the export itself
+  // re-reads the store in start() so it uses the latest edits.
   const project = store.getState().project;
   const size = exportSize(project, longSide);
 
@@ -40,9 +48,10 @@ export function ExportDialog(props: { video: File; events: VidzEvents | null; na
     return () => dialog?.close();
   }, [controller]);
 
-  // Cancel a running export if the dialog goes away.
+  // Cancel a running export if the dialog goes away (e.g. the editor closes).
   useEffect(() => () => runningRef.current?.cancel(), []);
 
+  // Free the result's object URL when it is replaced or the dialog closes.
   const doneUrl = state.kind === "done" ? state.url : null;
   useEffect(() => {
     if (!doneUrl) return;
@@ -69,7 +78,8 @@ export function ExportDialog(props: { video: File; events: VidzEvents | null; na
       const result = await running.done;
       runningRef.current = null;
       if (!result) {
-        setState({ kind: "setup" }); // canceled
+        // `done` resolves to null when the user canceled: back to the options, not an error.
+        setState({ kind: "setup" });
         return;
       }
       setState({
@@ -105,6 +115,7 @@ export function ExportDialog(props: { video: File; events: VidzEvents | null; na
 
       {(state.kind === "setup" || state.kind === "error") && (
         <div className="flex flex-col gap-5">
+          {/* Format first: it decides which codecs are used (see EXPORT_FORMATS). */}
           <fieldset className="flex flex-col gap-2">
             <legend className={panelLabel}>Format</legend>
             <div className="mt-2 grid grid-cols-3 gap-1" role="group" aria-label="Format">
@@ -181,6 +192,7 @@ export function ExportDialog(props: { video: File; events: VidzEvents | null; na
         </div>
       )}
 
+      {/* Progress: the render runs in a worker, so this stays responsive and can be canceled. */}
       {state.kind === "running" && (
         <div className="flex flex-col gap-4">
           <div
@@ -206,6 +218,7 @@ export function ExportDialog(props: { video: File; events: VidzEvents | null; na
         </div>
       )}
 
+      {/* Result: preview the exported file itself, then download it. */}
       {state.kind === "done" && (
         <div className="flex flex-col gap-4">
           <video src={state.url} controls playsInline className="w-full rounded-md bg-black" data-testid="export-preview" />

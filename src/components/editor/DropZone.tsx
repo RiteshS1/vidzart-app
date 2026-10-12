@@ -4,10 +4,14 @@ import { UploadCloud } from "lucide-react";
 import { useRef, useState, type DragEvent } from "react";
 import { primaryButton } from "./styles";
 
+// The editor's start screen: drop a video or pick one. Everything stays on the
+// device (the file is read in the browser; nothing is uploaded).
+
 export function DropZone(props: { onFile: (file: File) => void; error?: string | null; busy?: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
 
+  // Only the first file is used; a second video would need its own project.
   const onDrop = (event: DragEvent) => {
     event.preventDefault(); // otherwise the browser navigates to the file
     setOver(false);
