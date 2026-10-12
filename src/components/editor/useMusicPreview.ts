@@ -71,6 +71,8 @@ export function useMusicPreview({ store, assets, controller, video, getTimeMap }
         if (curve) duck = duckAt(curve.gains, controller.getOutputTime());
       }
 
+      // Native looping: a seek at every wrap would leave an audible gap.
+      if (audio.loop !== music.loop) audio.loop = music.loop;
       const t = controller.getOutputTime();
       const pos = musicPosition(music, t, musicMs);
       const gain = musicGain(music, t, musicMs, map.outputDuration) * duck;

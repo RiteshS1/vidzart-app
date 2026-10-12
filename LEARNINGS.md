@@ -16,6 +16,17 @@ coordinate mapping, encoding, browser/extension quirks). Newest entries at the t
 
 ## Log
 
+### 2026-10-12: Music "breaking every second" (decoder restarts)
+- **Symptom:** with background music added, the export's sound broke up once per second.
+- **Cause:** the mixer works in 1 s blocks and asked Mediabunny for each block's source audio
+  separately (`sink.samples(s0, s1)` per block). Every call starts a new decode, and Opus needs a
+  little "pre-roll" to converge after a restart, so each block began with a glitch. Measured on a
+  pure tone: jumps of 0.04–0.18 exactly at 1.044 s, 2.044 s… (the 44 ms is AAC priming).
+- **Fix:** one continuous decode pass per kept piece; a decoded chunk that straddles a block
+  boundary is carried over to the next block. Also `audio.loop` in the preview so short tracks
+  wrap without a seek gap. A test now exports a tone and fails on any sample-to-sample jump.
+- **What I learned:** with lossy audio codecs, don't seek-and-decode in small windows; stream.
+
 ### 2026-10-12: Phase 7 (editor features, design pass)
 - **Two coordinate spaces, on purpose.** Blur boxes and shapes live in SOURCE frame space (they
   stick to the recorded content and move with zooms); text overlays live in OUTPUT canvas space

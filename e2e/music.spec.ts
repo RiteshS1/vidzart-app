@@ -109,3 +109,74 @@ test("music is mixed into the export, saved in the .vidz and kept across reloads
   await page.getByRole("tab", { name: "Audio" }).click();
   await expect(page.getByTestId("music-name")).toHaveText("tone.wav");
 });
+
+/** A canvas video whose soundtrack is a steady 220 Hz tone (Opus, like real recordings). */
+async function toneVideo(page: Page, ms: number): Promise<Buffer> {
+  const bytes = await page.evaluate(async (duration) => {
+    const c = document.createElement("canvas");
+    c.width = 320;
+    c.height = 180;
+    const ctx = c.getContext("2d")!;
+    const ac = new AudioContext();
+    const osc = ac.createOscillator();
+    osc.frequency.value = 220;
+    const gain = ac.createGain();
+    gain.gain.value = 0.3;
+    const dest = ac.createMediaStreamDestination();
+    osc.connect(gain).connect(dest);
+    osc.start();
+    const stream = new MediaStream([...c.captureStream(30).getVideoTracks(), ...dest.stream.getAudioTracks()]);
+    const r = new MediaRecorder(stream, { mimeType: "video/webm;codecs=vp8,opus" });
+    const chunks: Blob[] = [];
+    r.ondataavailable = (e) => chunks.push(e.data);
+    const done = new Promise<void>((res) => (r.onstop = () => res()));
+    const timer = setInterval(() => {
+      ctx.fillStyle = "#345";
+      ctx.fillRect(0, 0, 320, 180);
+    }, 33);
+    r.start(250);
+    await new Promise((x) => setTimeout(x, duration));
+    r.stop();
+    await done;
+    clearInterval(timer);
+    osc.stop();
+    await ac.close();
+    return Array.from(new Uint8Array(await new Blob(chunks).arrayBuffer()));
+  }, ms);
+  return Buffer.from(bytes);
+}
+
+test("mixing the recording's audio with music has no clicks between blocks", async ({ page }) => {
+  // Regression: the mixer used to restart the Opus decoder for every 1 s
+  // block, which clicked once per second.
+  test.setTimeout(120_000);
+  await page.goto("/editor");
+  const video = await toneVideo(page, 4000);
+  await page.getByLabel("Choose a video file").setInputFiles({ name: "tone.webm", mimeType: "video/webm", buffer: video });
+  await expect(page.getByTestId("file-name")).toHaveText("tone.webm");
+  await page.getByRole("tab", { name: "Audio" }).click();
+  await page.getByLabel("Choose a music file").setInputFiles({ name: "tone.wav", mimeType: "audio/wav", buffer: toneWav() });
+  // Silent music: what we inspect is the recording's tone going through the mixer.
+  await page.getByRole("slider", { name: /^Music volume/ }).fill("0");
+
+  await page.getByRole("button", { name: "Export MP4" }).click();
+  const dialog = page.getByRole("dialog", { name: "Export MP4" });
+  await dialog.getByRole("button", { name: "720p" }).click();
+  await dialog.getByRole("button", { name: "Export", exact: true }).click();
+  await expect(dialog.getByTestId("export-summary")).toBeVisible({ timeout: 90_000 });
+  const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("link", { name: "Download MP4" }).click()]);
+  const mp4 = readFileSync(await download.path());
+  const clicks = await page.evaluate(async (b64) => {
+    const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+    const audio = await new AudioContext({ sampleRate: 48000 }).decodeAudioData(bytes.buffer);
+    const d = audio.getChannelData(0);
+    // A 220 Hz sine at 0.3 changes by at most ~0.01 per sample; a click is a jump.
+    const found: number[] = [];
+    const end = d.length - Math.round(0.15 * audio.sampleRate); // ignore the natural cut-off at the end
+    for (let i = Math.round(0.15 * audio.sampleRate); i < end; i++) {
+      if (Math.abs(d[i]! - d[i - 1]!) > 0.03) found.push(i / audio.sampleRate);
+    }
+    return found;
+  }, mp4.toString("base64"));
+  expect(clicks).toEqual([]);
+});

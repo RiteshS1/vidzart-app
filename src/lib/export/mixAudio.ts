@@ -2,9 +2,14 @@
 // volume was changed): the kept parts of the recording + the music, mixed
 // sample by sample.
 //
-// Works in 1-second blocks of OUTPUT time: decode just the source audio that
-// lands in this block, add the music with its volume/fades/ducking, hand the
-// block to the encoder. Memory stays flat no matter how long the video is.
+// Works in 1-second blocks of OUTPUT time: add the source audio that lands in
+// this block, add the music with its volume/fades/ducking, hand the block to
+// the encoder. Memory stays flat no matter how long the video is.
+//
+// The source audio of each kept piece is decoded in ONE continuous pass that
+// carries over from block to block. Restarting the decoder for every block
+// (an earlier version did) made Opus re-converge each time: an audible click
+// every second.
 
 import { AudioSample, AudioSampleSink, type AudioSampleSource, type InputAudioTrack } from "mediabunny";
 import type { StereoAudio } from "@/lib/audio/decode";
@@ -29,6 +34,13 @@ export interface MixJob {
 export async function mixAudio(job: MixJob): Promise<void> {
   const { map } = job;
   const sink = job.source ? new AudioSampleSink(job.source) : null;
+  // The kept, normal-speed pieces, in output order. (Sped-up parts stay
+  // silent: there's no time-stretching yet, like the plain export.)
+  const pieces = job.sourceVolume > 0 && sink ? map.pieces.filter((p) => p.rate === 1) : [];
+  let pieceIndex = 0;
+  let iterator: AsyncIterator<AudioSample> | null = null;
+  let pending: AudioSample | null = null; // a decoded chunk that reaches into the next block
+
   for (let o0 = 0; o0 < map.outputDuration; o0 += BLOCK_MS) {
     if (job.signal.aborted) await job.onAbort();
     const o1 = Math.min(map.outputDuration, o0 + BLOCK_MS);
@@ -39,17 +51,35 @@ export async function mixAudio(job: MixJob): Promise<void> {
     const msOf = (i: number) => o0 + (i * 1000) / MIX_RATE; // output ms of frame i
 
     // 1. The recording's kept parts that fall into this block.
-    if (sink && job.sourceVolume > 0) {
-      for (const piece of map.pieces) {
-        // Sped-up parts stay silent (no time-stretching), like the plain export.
-        if (piece.rate !== 1 || piece.outputEnd <= o0 || piece.outputStart >= o1) continue;
-        const s0 = piece.sourceStart + (Math.max(o0, piece.outputStart) - piece.outputStart);
-        const s1 = piece.sourceStart + (Math.min(o1, piece.outputEnd) - piece.outputStart);
-        for await (const sample of sink.samples(s0 / 1000, s1 / 1000)) {
-          addSource(sample, piece.outputStart - piece.sourceStart, s0, s1, o0, left, right, job.sourceVolume);
-          sample.close();
+    while (pieceIndex < pieces.length && pieces[pieceIndex]!.outputStart < o1) {
+      const piece = pieces[pieceIndex]!;
+      // One decoder pass per piece, started when the piece is first reached.
+      iterator ??= sink!.samples(piece.sourceStart / 1000, piece.sourceEnd / 1000)[Symbol.asyncIterator]();
+      const shift = piece.outputStart - piece.sourceStart; // output = source + shift
+      // This block's part of the piece, in source ms.
+      const s0 = Math.max(o0, piece.outputStart) - shift;
+      const s1 = Math.min(o1, piece.outputEnd) - shift;
+      let reachesNextBlock = false;
+      for (;;) {
+        const sample: AudioSample | undefined = pending ?? (await iterator.next()).value;
+        pending = null;
+        if (!sample) break; // piece fully decoded
+        if (s1 > s0) addSource(sample, shift, s0, s1, o0, left, right, job.sourceVolume);
+        const sampleEnd = sample.timestamp * 1000 + (sample.numberOfFrames * 1000) / sample.sampleRate;
+        if (sampleEnd > s1 && piece.outputEnd > o1) {
+          pending = sample; // the rest of it belongs to the next block
+          reachesNextBlock = true;
+          break;
         }
+        sample.close();
       }
+      if (reachesNextBlock) break;
+      // This piece is done: move to the next one (with a fresh decoder pass).
+      pending?.close();
+      pending = null;
+      await iterator.return?.();
+      iterator = null;
+      pieceIndex++;
     }
 
     // 2. The music on top.
@@ -80,6 +110,8 @@ export async function mixAudio(job: MixJob): Promise<void> {
     await job.destination.add(block);
     block.close();
   }
+  pending?.close();
+  await iterator?.return?.();
   job.destination.close();
 }
 
