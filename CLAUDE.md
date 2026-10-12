@@ -42,6 +42,8 @@ Installed versions are pinned in `package.json` / `pnpm-lock.yaml` (scaffolded 2
 - **OPFS** (Origin Private File System) for large video blobs; **IndexedDB** for project
   metadata/list.
 - **`@huggingface/transformers` 4.3** for in-browser Whisper (Phase 6).
+- **`motion` 13.4** (React animation) and **`gsap` 3.15** (ScrollTrigger, SplitText; GSAP's
+  free standard license, not MIT) for the landing page; **`lucide-react`** icons.
 - **pnpm**.
 
 ## Next.js docs: read before writing Next-specific code
@@ -476,9 +478,11 @@ VIDZART_TEST_WHISPER=1 pnpm test:e2e   # also run the on-device captions test (d
 
 **Not planned:** accounts/auth, cloud storage, share links, payments, Vidzart-hosted AI.
 
-**Current phase:** Phase 7 done (2026-10-12). See the roadmap line above; design rules come from
-the ui-ux-pro-max skill (dark only, tokens in `globals.css`, lucide icons, ≥4.5:1 text, visible
-focus, reduced motion respected).
+**Current phase:** Phase 7 done (2026-10-12), then a design follow-up: "studio" palette
+(graphite surfaces, white primary buttons, one amber accent, red for REC/playhead; **no
+gradients and no purple/pink**), all editor tools on the RIGHT (panel + rail; a selected item's
+settings replace the tool panel), landing page animated with GSAP (ScrollTrigger, SplitText;
+free "standard no-charge" license, not MIT) + Motion, always reduced-motion aware.
 
 **Known export limits:** audio in speed-changed pieces is silent (no time-stretching yet; the
 preview mutes them too, so it matches); projects over 4 GB can't be saved as .vidz (no Zip64).
