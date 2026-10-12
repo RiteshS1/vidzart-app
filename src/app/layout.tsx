@@ -1,15 +1,19 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Space_Grotesk, Space_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+// Space Grotesk for UI and headings, Space Mono for timecodes and numbers.
+// next/font downloads them at build time and serves them from our own
+// origin, so pages never request Google Fonts at runtime.
+const sans = Space_Grotesk({
+  variable: "--font-sans-face",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const mono = Space_Mono({
+  variable: "--font-mono-face",
   subsets: ["latin"],
+  weight: ["400", "700"],
 });
 
 export const metadata: Metadata = {
@@ -21,7 +25,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${sans.variable} ${mono.variable} h-full antialiased`}
     >
       {/*
         suppressHydrationWarning: browser extensions (e.g. ColorZilla adds

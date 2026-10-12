@@ -6,6 +6,10 @@ const nextConfig: NextConfig = {
   // actions, proxy, rewrites or `headers()` — Next errors in dev if we use them.
   output: "export",
 
+  // The dev-only "N" badge sits bottom-left by default, right on top of the
+  // timeline's start; bottom-right is the least-used corner of the editor.
+  devIndicators: { position: "bottom-right" },
+
   // Note: create-next-app 16.4 enables `cacheComponents` + `partialPrefetching`
   // by default. They're about caching server-fetched data, and we fetch nothing
   // on the server, so we leave them off to keep the mental model simple.
