@@ -231,3 +231,45 @@ test.describe("captions (downloads a ~40 MB model; opt-in)", () => {
     testInfo.attach("captions.srt", { body: srt, contentType: "text/plain" });
   });
 });
+
+test("uploaded captions autofill, can be styled and shown on the preview", async ({ page }) => {
+  await page.goto("/editor");
+  const video = await makeVideoWithAudio(page, [[4000, true]]);
+  await openVideo(page, video);
+  await page.getByRole("tab", { name: "Captions" }).click();
+
+  // An .srt (with a BOM, as many tools write) fills the caption list.
+  const srt = "﻿1\n00:00:00,500 --> 00:00:02,000\nWelcome to the demo\n\n2\n00:00:02,500 --> 00:00:03,800\nClick <b>here</b>, then export\n";
+  await page.getByLabel("Choose a caption file").setInputFiles({ name: "talk.srt", mimeType: "application/x-subrip", buffer: Buffer.from(srt) });
+  await expect(page.getByText("Loaded 2 captions from talk.srt")).toBeVisible();
+  await expect(page.getByLabel("Caption at 0:00.5")).toHaveValue("Welcome to the demo");
+  await expect(page.getByLabel("Caption at 0:02.5")).toHaveValue("Click here, then export");
+
+  // Pixels: with captions on and a white-on-box look, the bottom of the video
+  // has near-white text pixels at 1 s; hiding captions removes them.
+  const track = page.getByTestId("timeline-track");
+  const box = (await track.boundingBox())!;
+  await track.click({ position: { x: box.width * 0.25, y: box.height / 2 } });
+  const textPixels = () =>
+    page.getByTestId("preview-canvas").evaluate((el) => {
+      const c = el as HTMLCanvasElement;
+      const d = c.getContext("2d")!.getImageData(Math.floor(c.width * 0.2), Math.floor(c.height * 0.6), Math.floor(c.width * 0.6), Math.floor(c.height * 0.3)).data;
+      let n = 0;
+      for (let i = 0; i < d.length; i += 4) if (d[i]! > 235 && d[i + 1]! > 235 && d[i + 2]! > 235) n++;
+      return n;
+    });
+  await expect.poll(textPixels).toBeGreaterThan(80);
+
+  // Style: Label look = dark text on a white box → the white box adds lots of white.
+  const before = await textPixels();
+  await page.getByRole("group", { name: "Caption look" }).getByRole("button", { name: "Label" }).click();
+  await expect.poll(textPixels).toBeGreaterThan(before * 2);
+  // Position to the top: nothing near the bottom any more.
+  await page.getByRole("group", { name: "Caption position" }).getByRole("button", { name: "top" }).click();
+  await expect.poll(textPixels).toBeLessThan(5);
+
+  // A broken file explains itself and keeps the existing captions.
+  await page.getByLabel("Choose a caption file").setInputFiles({ name: "bad.srt", mimeType: "text/plain", buffer: Buffer.from("not subtitles") });
+  await expect(page.getByText(/No captions found/)).toBeVisible();
+  await expect(page.getByLabel("Caption at 0:00.5")).toHaveValue("Welcome to the demo");
+});

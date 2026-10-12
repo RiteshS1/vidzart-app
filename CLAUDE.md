@@ -355,7 +355,15 @@ interface Captions {
   language?: string; // BCP 47 tag of the spoken language, e.g. "en"
   style: {
     size: number;                // text height, fraction of the output canvas's shorter side
-    position: "bottom" | "top";
+    position: "bottom" | "middle" | "top";
+    // All below optional (defaults: sans, 600, white, dark box, as typed, no highlight):
+    font?: "sans" | "serif" | "mono" | "rounded";
+    weight?: 400 | 600 | 800;
+    color?: string;              // CSS color of the text
+    background?: string | null;  // CSS color (alpha ok) of a box behind the text; null/absent = none
+    outline?: boolean;           // dark outline + shadow instead of a box, readable on any frame
+    uppercase?: boolean;
+    highlight?: string;          // CSS color of the word being spoken (needs cue.words)
   };
   cues: {
     id: string;

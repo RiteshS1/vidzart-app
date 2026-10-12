@@ -126,15 +126,27 @@ export interface CaptionCue {
   words?: CaptionWord[];
 }
 
+export interface CaptionStyle {
+  /** Text height as a fraction of the output canvas's shorter side. */
+  size: number;
+  position: "bottom" | "middle" | "top";
+  font?: "sans" | "serif" | "mono" | "rounded";
+  weight?: 400 | 600 | 800;
+  color?: string;
+  /** Box behind the text (CSS color, alpha ok). Absent/null = no box. */
+  background?: string | null;
+  /** Dark outline + shadow, for text without a box. */
+  outline?: boolean;
+  uppercase?: boolean;
+  /** Color of the word being spoken (needs cue.words). */
+  highlight?: string;
+}
+
 export interface Captions {
   visible: boolean;
   /** BCP 47 tag of the spoken language, e.g. "en". */
   language?: string;
-  style: {
-    /** Text height as a fraction of the output canvas's shorter side. */
-    size: number;
-    position: "bottom" | "top";
-  };
+  style: CaptionStyle;
   /** Sorted by start, non-overlapping. */
   cues: CaptionCue[];
 }
