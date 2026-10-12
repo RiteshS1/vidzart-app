@@ -2,6 +2,12 @@ import { test, expect, type Page } from "@playwright/test";
 import { createProject } from "../src/lib/project/defaults";
 import { writeVidz } from "../src/lib/vidz/vidzFile";
 
+// The AI tools are locked for visitors (src/lib/features.ts); these specs test
+// the working code, so they use the owner's unlock.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("vidzart.unlockAi", "1"));
+});
+
 // BYOK tools against a mocked provider: page.route intercepts the request
 // in the browser, so we can check exactly what would be sent (key, headers,
 // transcript) without a real key or network.

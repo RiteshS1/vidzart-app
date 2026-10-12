@@ -11,6 +11,7 @@ import {
   Type,
   ZoomIn,
 } from "lucide-react";
+import { ComingSoon } from "@/components/editor/ComingSoon";
 import { HeroDemo } from "@/components/landing/HeroDemo";
 import { LandingScene } from "@/components/landing/LandingScene";
 import { MotionLink } from "@/components/landing/MotionLink";
@@ -37,9 +38,9 @@ const TAKES = [
   },
   {
     icon: Captions,
-    title: "Captions without the cloud",
-    text: "Whisper runs inside your browser. Edit the words, burn them in, or export SRT and VTT. Cut silences and “um”s in a click.",
-    spec: "on-device whisper · srt / vtt",
+    title: "Captions, your way",
+    text: "Drop in an .srt or .vtt and the words fill in. Edit them, pick a style, burn them into the video or export SRT and VTT. Automatic captions are coming soon.",
+    spec: "srt / vtt import · styles · burn-in",
   },
   {
     icon: Type,
@@ -189,6 +190,39 @@ export default function Home() {
                 </div>
               </article>
             ))}
+          </div>
+        </section>
+
+        {/* AI Edit: announced, clearly not available yet */}
+        <section className="border-b border-line" aria-labelledby="ai-title">
+          <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-24 sm:px-6 lg:grid-cols-2">
+            <div>
+              <p className="flex items-center gap-3 font-mono text-xs text-accent uppercase">
+                AI Edit
+                <span className="rounded-full border border-accent/50 px-2 py-0.5 text-[10px] font-semibold tracking-wide">Coming soon</span>
+              </p>
+              <h2 id="ai-title" data-split="scroll" className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">
+                Describe the edit. Get the video.
+              </h2>
+              <p data-reveal className="mt-4 text-ink-muted">
+                Say what you want in plain words and Vidzart will do the first pass: tighten the pauses, zoom on the moments
+                that matter, add the titles, fit it to a vertical reel. Then you fine-tune on the timeline like any edit. We’re
+                building it now.
+              </p>
+            </div>
+            <ComingSoon badge={false} className="rounded-xl border border-line bg-surface p-5">
+              <p className="font-mono text-xs text-ink-faint uppercase">Your prompt</p>
+              <p className="mt-2 rounded-lg bg-bg p-4 text-sm">
+                “Cut the dead air, zoom in on the checkout, add a title that says <i>Launch day</i>, and make it 9:16 for Reels.”
+              </p>
+              <ul className="mt-4 flex flex-wrap gap-2 font-mono text-xs text-ink-muted">
+                {["Cut pauses", "Zoom on clicks", "Add title", "Resize 9:16", "Add captions"].map((c) => (
+                  <li key={c} className="rounded-md border border-line px-2 py-1">
+                    {c}
+                  </li>
+                ))}
+              </ul>
+            </ComingSoon>
           </div>
         </section>
 

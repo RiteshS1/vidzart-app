@@ -25,7 +25,7 @@ export const softwareApplication = () => ({
   featureList: [
     "Automatic zooms on every click",
     "Smooth cursor and click effects",
-    "On-device captions with SRT/VTT import and export",
+    "Captions from SRT/VTT files, styled and burned in",
     "Text, arrows and spotlights",
     "Background music with ducking",
     "Export to MP4, MOV and WebM up to 4K",

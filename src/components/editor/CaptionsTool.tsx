@@ -4,11 +4,13 @@ import { Upload } from "lucide-react";
 import { useRef, useState } from "react";
 import { runAiTask } from "@/lib/ai/aiClient";
 import { WHISPER_MODELS, type WhisperModel } from "@/lib/ai/models";
+import { aiEnabled } from "@/lib/features";
 import { fitCuesToDuration, parseSubtitles } from "@/lib/captions/parse";
 import { applyCaptionPreset, CAPTION_PRESETS, DEFAULT_CAPTION_STYLE } from "@/lib/captions/styles";
 import { cuesToOutput, toSrt, toVtt } from "@/lib/captions/subtitles";
 import type { Captions, CaptionCue, CaptionStyle } from "@/lib/project/types";
 import { formatTime } from "@/lib/time/formatTime";
+import { ComingSoon } from "./ComingSoon";
 import { TaskProgress, useTask } from "./TaskProgress";
 import { useEditor, useEditorContext } from "./EditorContext";
 import { button, panelLabel, segment } from "./styles";
@@ -81,33 +83,9 @@ export function CaptionsTool({ video, name }: { video: Blob; name: string }) {
     }
   };
 
-  return (
-    <section className="flex flex-col gap-3" aria-labelledby="captions-title">
-      <h3 id="captions-title" className={panelLabel}>
-        Captions
-      </h3>
-      {!captions && (
-        <p className="text-xs opacity-60">
-          Transcribes the speech on your device with Whisper. The model is downloaded once from Hugging Face
-          (~{WHISPER_MODELS[model].sizeMb} MB) and cached; your audio never leaves this computer.
-        </p>
-      )}
-      <input
-        ref={fileInput}
-        type="file"
-        accept=".srt,.vtt,text/vtt,application/x-subrip"
-        className="hidden"
-        aria-label="Choose a caption file"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) void loadFile(file);
-          e.target.value = "";
-        }}
-      />
-      {progress ? (
-        <TaskProgress progress={progress} onCancel={cancel} />
-      ) : (
-        <>
+  // The on-device generator (Whisper): locked for now, see src/lib/features.ts.
+  const generator = (
+    <div className="flex flex-col gap-3">
           <div className="flex gap-2">
             <label className="flex flex-1 flex-col gap-1 text-xs">
               <span className="opacity-60">Speech model</span>
@@ -138,10 +116,43 @@ export function CaptionsTool({ video, name }: { video: Blob; name: string }) {
               </select>
             </label>
           </div>
+      <button type="button" className={button} onClick={() => void generate()}>
+        {captions ? "Regenerate captions" : "Generate captions"}
+      </button>
+    </div>
+  );
+  const ai = aiEnabled();
+
+  return (
+    <section className="flex flex-col gap-3" aria-labelledby="captions-title">
+      <h3 id="captions-title" className={panelLabel}>
+        Captions
+      </h3>
+      {!captions && (
+        <p className="text-xs text-ink-muted">
+          {ai
+            ? `Transcribes the speech on your device with Whisper. The model is downloaded once from Hugging Face (~${WHISPER_MODELS[model].sizeMb} MB) and cached; your audio never leaves this computer.`
+            : "Upload an .srt or .vtt file and the captions fill in; then edit and style them. Generating captions automatically is coming soon."}
+        </p>
+      )}
+      <input
+        ref={fileInput}
+        type="file"
+        accept=".srt,.vtt,text/vtt,application/x-subrip"
+        className="hidden"
+        aria-label="Choose a caption file"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) void loadFile(file);
+          e.target.value = "";
+        }}
+      />
+      {progress ? (
+        <TaskProgress progress={progress} onCancel={cancel} />
+      ) : (
+        <>
+          {ai ? generator : <ComingSoon className="mt-1">{generator}</ComingSoon>}
           <div className="flex flex-wrap gap-2">
-            <button type="button" className={button} onClick={() => void generate()}>
-              {captions ? "Regenerate captions" : "Generate captions"}
-            </button>
             <button type="button" className={button} onClick={() => fileInput.current?.click()}>
               <Upload className="size-4" aria-hidden /> {captions ? "Replace from file…" : "Upload captions…"}
             </button>

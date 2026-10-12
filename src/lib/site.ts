@@ -98,12 +98,12 @@ export const FAQ: { question: string; answer: string }[] = [
   {
     question: "How do captions work?",
     answer:
-      "Captions can be generated on your device with the Whisper speech model (downloaded once, then cached), or you can upload an .srt or .vtt file. They can be edited, styled, burned into the video or downloaded as SRT or VTT.",
+      "Upload an .srt or .vtt file and the captions fill in automatically. You can edit them, pick a style (font, colors, box or outline, position), burn them into the video, or download them as SRT or VTT. Generating captions automatically on your device is coming soon.",
   },
   {
-    question: "Can I use my own AI provider?",
+    question: "Does Vidzart have AI features?",
     answer:
-      "Yes. Optional writing tools (titles, chapters, summaries, translation) work with your own API key for Anthropic, OpenAI, Google Gemini, Groq, OpenRouter or Mistral. Keys are stored only in your browser and sent directly to the provider you choose.",
+      "AI Edit (describe the edit in words and get a first pass) and AI tools such as automatic captions, silence and filler-word removal, and writing titles and chapters with your own provider key are coming soon. They are visible in the editor but locked for now. Everything else works today.",
   },
   {
     question: "Is the Chrome extension on the Chrome Web Store?",
@@ -123,6 +123,12 @@ export interface ChangelogEntry {
 
 /** Newest first. */
 export const CHANGELOG: ChangelogEntry[] = [
+  {
+    date: "2026-10-14",
+    title: "AI tools are on the way: visible, locked for now",
+    summary:
+      "AI Edit and the AI tools (automatic captions, silence and filler removal, writing helpers) are shown in the editor and on the home page marked Coming soon. Everything else works today, including captions from .srt and .vtt files.",
+  },
   {
     date: "2026-10-13",
     title: "Captions from files, caption styles, more backgrounds",

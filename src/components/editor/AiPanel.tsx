@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { runAiTask } from "@/lib/ai/aiClient";
 import { cutRanges, removeFillerWords } from "@/lib/editor/actions";
+import { aiEnabled } from "@/lib/features";
 import { ByokTool } from "./ByokTool";
+import { ComingSoon } from "./ComingSoon";
 import { useEditor, useEditorContext } from "./EditorContext";
 import { TaskProgress, useTask } from "./TaskProgress";
 import { button, panelLabel } from "./styles";
@@ -12,11 +14,24 @@ import { button, panelLabel } from "./styles";
 // this device (in a worker) unless it says it uses your own API key.
 
 export function AiPanel({ video }: { video: Blob }) {
-  return (
+  const tools = (
     <div className="flex flex-col gap-6">
       <SilenceTool video={video} />
       <FillerTool />
       <ByokTool />
+    </div>
+  );
+  if (aiEnabled()) return tools;
+  // Locked for now (src/lib/features.ts): visible, but not usable.
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <h3 className={panelLabel}>AI tools</h3>
+        <p className="mt-1 text-sm text-ink-muted">
+          Cut silences and filler words, and write titles, chapters and summaries with your own AI provider. Coming soon.
+        </p>
+      </div>
+      <ComingSoon>{tools}</ComingSoon>
     </div>
   );
 }

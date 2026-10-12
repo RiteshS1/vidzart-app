@@ -24,9 +24,10 @@ captures cursor and click events is in the companion repo **[vidzart-extension](
 - **Text & highlights:** titles, callouts, lower thirds (animated), arrows, boxes, circles,
   spotlights, blur boxes for sensitive info.
 - **Audio:** background music that loops, fades and ducks under your voice; recording volume.
-- **AI:** on-device captions (Whisper), cut silences and filler words; optional BYOK writing
-  tools (title, chapters, summary, translation) with Anthropic, OpenAI, Gemini, Groq, OpenRouter
-  or Mistral.
+- **Captions:** upload an .srt/.vtt (they fill in), edit, style, burn in or export.
+- **AI (coming soon, visible but locked):** AI Edit, automatic on-device captions, silence and
+  filler removal, bring-your-own-key writing tools. Unlock in your own browser with
+  `localStorage.setItem("vidzart.unlockAi", "1")`.
 - **Export MP4** up to 4K at 30/60 fps in your browser; **autosave** and a projects dashboard.
 
 ## Privacy
@@ -34,10 +35,9 @@ captures cursor and click events is in the companion repo **[vidzart-extension](
 Everything runs in your browser; nothing is uploaded, and there are no Vidzart servers,
 accounts or cloud storage.
 
-- The on-device captions download the speech model (from Hugging Face) and the ONNX runtime
-  (from jsDelivr) once; your audio never leaves your computer.
-- If you add an AI provider API key, it is stored **only in this browser** and requests go
-  directly from your browser to that provider (only the transcript text is sent).
+- The AI tools are locked for now, so nothing AI-related is downloaded or sent anywhere. When they
+  launch, on-device captions will fetch a speech model once, and a provider API key you add will be
+  stored only in your browser and used only with that provider.
 
 ## Running locally
 

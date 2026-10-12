@@ -4,6 +4,12 @@ import { test, expect, type Page } from "@playwright/test";
 import { createProject } from "../src/lib/project/defaults";
 import { writeVidz } from "../src/lib/vidz/vidzFile";
 
+// The AI tools are locked for visitors (src/lib/features.ts); these specs test
+// the working code, so they use the owner's unlock.
+test.beforeEach(async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("vidzart.unlockAi", "1"));
+});
+
 // AI-tab tools. Test media is generated in the browser: a canvas video with
 // an oscillator soundtrack whose volume follows a script, e.g. tone 1s,
 // silence 2s, tone 1s.

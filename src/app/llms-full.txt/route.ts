@@ -25,9 +25,9 @@ ${SITE_NAME} is a screen recorder and video editor for product demos and tutoria
 - Timeline: cut ranges (cut parts disappear, with a seam to restore), speed-ups, blur boxes, undo/redo, zoomable timeline with thumbnails.
 - Style: background colors and gradients in genres, a custom color picker, padding, rounded corners, shadow, aspect ratios (16:9, 9:16, 1:1, 4:3, original), color looks, fades and transitions at cuts.
 - Text overlays with animations, arrows, boxes, circles and spotlights.
-- Captions: generated on device with Whisper, or uploaded as .srt/.vtt; styled and burned in, or exported as SRT/VTT. Silence and filler-word removal.
+- Captions: uploaded as .srt/.vtt, edited, styled and burned in, or exported as SRT/VTT.
 - Audio: background music that loops, fades and ducks under speech.
-- Optional bring-your-own-key AI writing tools (titles, chapters, summaries, translation) for Anthropic, OpenAI, Google Gemini, Groq, OpenRouter and Mistral.
+- Coming soon (visible but locked in the editor): AI Edit (describe an edit in words, get a first pass), automatic on-device captions, silence and filler-word removal, and bring-your-own-key writing tools.
 - Export to MP4, MOV or WebM up to 4K at 30 or 60 fps, rendered in the browser with WebCodecs.
 
 ## Constraints
@@ -39,7 +39,7 @@ ${SITE_NAME} is a screen recorder and video editor for product demos and tutoria
 
 ## Privacy
 
-The extension requests activeTab, scripting, tabCapture and offscreen, and no host permissions. It logs pointer movement, clicks, scrolls and keyboard shortcuts that include Ctrl, Cmd or Alt; typed characters are never recorded. API keys for optional AI providers are stored only in the browser and sent only to the chosen provider.
+The extension requests activeTab, scripting, tabCapture and offscreen, and no host permissions. It logs pointer movement, clicks, scrolls and keyboard shortcuts that include Ctrl, Cmd or Alt; typed characters are never recorded. The AI tools are locked for now; when they launch, any provider API key you add will be stored only in your browser and sent only to the provider you choose.
 
 ## FAQ
 

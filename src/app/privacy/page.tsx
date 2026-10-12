@@ -25,8 +25,8 @@ const SECTIONS: { title: string; body: string[] }[] = [
   {
     title: "Captions and AI",
     body: [
-      "On-device captions download the Whisper speech model from Hugging Face and the ONNX runtime from jsDelivr once; your audio is never sent anywhere.",
-      "Optional writing tools use an API key you provide. The key is stored only in your browser and requests go straight from your browser to the provider you pick; only the transcript text is sent.",
+      "The AI tools (automatic captions, silence removal, writing helpers) are coming soon and locked for now, so nothing AI-related is downloaded or sent anywhere today.",
+      "When they launch, any provider API key you add will be stored only in your browser, and requests will go straight from your browser to the provider you pick.",
     ],
   },
   {
