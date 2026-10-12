@@ -16,6 +16,8 @@ export interface StoredProject {
   video: File;
   events: VidzEvents | null;
   project: VidzProject;
+  /** Files the project uses besides the video (e.g. music), by .vidz path. */
+  assets?: Record<string, Blob>;
 }
 
 /** What the "Recent projects" list needs, without touching the video. */
@@ -78,15 +80,30 @@ export async function createStoredProject(input: Omit<StoredProject, "id" | "cre
   return record.id;
 }
 
+/**
+ * Read-modify-write of one record inside ONE readwrite transaction, so two
+ * saves (edits and assets) can't overwrite each other's changes.
+ */
+async function updateRecord(id: string, change: (record: StoredProject) => StoredProject): Promise<void> {
+  await tx([STORE, META], "readwrite", (t) => {
+    const request = t.objectStore(STORE).get(id) as IDBRequest<StoredProject | undefined>;
+    request.onsuccess = () => {
+      if (!request.result) return; // deleted meanwhile
+      const next = { ...change(request.result), updatedAt: Date.now() };
+      t.objectStore(STORE).put(next);
+      t.objectStore(META).put(summaryOf(next));
+    };
+  });
+}
+
 /** Saves new edits (project JSON only; the video never changes). */
 export async function saveProjectEdits(id: string, project: VidzProject): Promise<void> {
-  const record = await tx<StoredProject>([STORE], "readonly", (t) => t.objectStore(STORE).get(id));
-  if (!record) return; // deleted meanwhile
-  const next = { ...record, project, updatedAt: Date.now() };
-  await tx([STORE, META], "readwrite", (t) => {
-    t.objectStore(STORE).put(next);
-    t.objectStore(META).put(summaryOf(next));
-  });
+  await updateRecord(id, (record) => ({ ...record, project }));
+}
+
+/** Saves the project's asset files (music…), replacing the previous set. */
+export async function saveProjectAssets(id: string, assets: Record<string, Blob>): Promise<void> {
+  await updateRecord(id, (record) => ({ ...record, assets }));
 }
 
 export async function getStoredProject(id: string): Promise<StoredProject | undefined> {

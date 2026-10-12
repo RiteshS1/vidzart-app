@@ -25,6 +25,8 @@ export interface VidzContents {
   video: File;
   events: VidzEvents | null;
   project: VidzProject;
+  /** Files under assets/ (e.g. background music), by their path in the zip. */
+  assets: Record<string, Blob>;
 }
 
 export class VidzError extends Error {}
@@ -61,7 +63,13 @@ export async function readVidz(file: Blob): Promise<VidzContents> {
   const project = migrateProject(await readJson(manifest.files.project));
   const events = manifest.files.events ? migrateEvents(await readJson(manifest.files.events)) : null;
 
-  return { manifest, video, events, project };
+  // Assets are referenced from project.json by their zip path ("assets/…").
+  const assets: Record<string, Blob> = {};
+  for (const [name, entry] of entries) {
+    if (name.startsWith("assets/") && !name.endsWith("/")) assets[name] = await entry.blob();
+  }
+
+  return { manifest, video, events, project, assets };
 }
 
 export async function writeVidz(contents: {
@@ -70,6 +78,8 @@ export async function writeVidz(contents: {
   videoName: "video.webm" | "video.mp4";
   events: VidzEvents | null;
   appVersion: string;
+  /** Extra files under assets/, by path (e.g. "assets/music.mp3"). */
+  assets?: Record<string, Blob>;
 }): Promise<Blob> {
   const manifest: VidzManifest = {
     format: VIDZ_FORMAT,
@@ -90,6 +100,8 @@ export async function writeVidz(contents: {
     { name: "project.json", data: json(contents.project), compress: true },
   ];
   if (contents.events) inputs.push({ name: "events.json", data: json(contents.events), compress: true });
+  // Media assets are already compressed: store them as-is, like the video.
+  for (const [name, data] of Object.entries(contents.assets ?? {})) inputs.push({ name, data });
   return writeZip(inputs);
 }
 

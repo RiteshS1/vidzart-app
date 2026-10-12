@@ -26,6 +26,9 @@ import {
   getFirstEncodableAudioCodec,
   getFirstEncodableVideoCodec,
 } from "mediabunny";
+import { decodeMono, decodeStereo } from "@/lib/audio/decode";
+import { duckCurve } from "@/lib/audio/music";
+import { speechMask } from "@/lib/audio/silence";
 import { createCursorTrack } from "@/lib/effects/cursorTrack";
 import { createCursorLookup } from "@/lib/events/cursor";
 import type { VidzEvents } from "@/lib/events/types";
@@ -33,6 +36,7 @@ import type { VidzProject } from "@/lib/project/types";
 import { outputAspect, outputSize } from "@/lib/render/layout";
 import { renderFrame } from "@/lib/render/renderFrame";
 import { buildTimeMap, cutPoints, outputToSource } from "@/lib/timeline/timeMap";
+import { MIX_RATE, mixAudio } from "./mixAudio";
 
 export interface ExportOptions {
   /** Length of the output's longer side in pixels, e.g. 1920 for 1080p 16:9. */
@@ -42,6 +46,8 @@ export interface ExportOptions {
 
 export interface ExportJob {
   video: Blob;
+  /** The background music file (project.audio.music.src), if any. */
+  music?: Blob | null;
   project: VidzProject;
   events: VidzEvents | null;
   options: ExportOptions;
@@ -96,8 +102,22 @@ export async function exportVideo(
     const videoSource = new CanvasSource(canvas, { codec: videoCodec, quality: QUALITY_HIGH, keyFrameInterval: 2 });
     output.addVideoTrack(videoSource, { frameRate: options.fps });
 
+    // With music (or a changed recording volume) the audio is mixed sample
+    // by sample (mixAudio.ts); otherwise the recording's audio is copied
+    // piece by piece, keeping its own channel layout.
+    const musicSettings = project.audio?.music;
+    const sourceVolume = project.audio?.sourceVolume ?? 1;
+    const sourceAudio = audioTrack && (await audioTrack.canDecode()) ? audioTrack : null;
+    const mixing = Boolean(musicSettings && job.music) || sourceVolume < 1;
+
     let audio: { source: AudioSampleSource; codec: string } | null = null;
-    if (audioTrack && (await audioTrack.canDecode())) {
+    if (mixing) {
+      const codec = await getFirstEncodableAudioCodec(["aac", "opus"], { numberOfChannels: 2, sampleRate: MIX_RATE });
+      if (codec) {
+        audio = { source: new AudioSampleSource({ codec, quality: QUALITY_HIGH }), codec };
+        output.addAudioTrack(audio.source);
+      }
+    } else if (audioTrack && (await audioTrack.canDecode())) {
       const codec = await getFirstEncodableAudioCodec(["aac", "opus"], {
         numberOfChannels: await audioTrack.getNumberOfChannels(),
         sampleRate: await audioTrack.getSampleRate(),
@@ -172,6 +192,30 @@ export async function exportVideo(
     };
 
     const copyAudio = async () => {
+      if (audio && mixing) {
+        const music =
+          musicSettings && job.music
+            ? await decodeStereo(job.music, MIX_RATE, map.outputDuration)
+            : null;
+        // Ducking needs to know when someone speaks in the recording.
+        let duck: Float32Array | null = null;
+        if (music && musicSettings?.duckUnderVoice && sourceAudio) {
+          const mono = await decodeMono(job.video, 8_000);
+          const speech = mono && speechMask(mono.samples, mono.sampleRate);
+          if (speech) duck = duckCurve(speech, map);
+        }
+        await mixAudio({
+          map,
+          source: sourceAudio,
+          sourceVolume,
+          music: music && musicSettings ? { audio: music, settings: musicSettings } : null,
+          duck,
+          destination: audio.source,
+          signal,
+          onAbort: abort,
+        });
+        return;
+      }
       if (!audio || !audioTrack) return;
       const sink = new AudioSampleSink(audioTrack);
       for (const piece of map.pieces) {
