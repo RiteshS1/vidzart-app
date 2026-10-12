@@ -57,46 +57,50 @@ What exists now (✓) and what's planned:
 ```
 src/
   app/
-    page.tsx               ✓ landing page (static)
+    page.tsx               ✓ landing page (static; live hero demo + Motion reveals)
+    projects/              ✓ dashboard of autosaved projects (cards with thumbnails)
     record/                ✓ Phase 0 recorder (getDisplayMedia + MediaRecorder)
     editor/                ✓ client-only editor shell (EditorLoader → dynamic import, ssr:false)
   components/
+    site/                  ✓ SiteHeader / SiteFooter (landing, projects, record, editor start)
+    landing/               ✓ HeroDemo (renderFrame on a mock app with a scripted user), Reveal
+    projects/              ✓ ProjectsDashboard
     recorder/              ✓ Recorder UI
-    editor/                ✓ Editor, Workspace (+ Style/AI sidebar), PreviewCanvas, Transport,
-                             Timeline, SettingsPanel, DropZone, EditorContext, useEditorShortcuts,
-                             AiPanel (silences, fillers), CaptionsTool, ByokTool, TaskProgress,
-                             RecentProjects (local dashboard), useAutosave, SegmentLane (zoom/
-                             speed/blur lanes), RangeInspectors (speed, blur, selected switch)
+    editor/                ✓ Editor, Workspace (TopBar, tool rail + panels, sliding Inspector),
+                             PreviewCanvas (+ drag handle for texts), Transport, Timeline
+                             (output time, filmstrip, seams, zoom/scroll, lanes, MusicLane),
+                             SegmentLane (zoom/speed/blur/shape/text), panels: SettingsPanel
+                             (Style + CursorPanel), TextTools, ShapeTools, EffectsPanel,
+                             AudioPanel, CaptionsTool, AiPanel, ByokTool; inspectors:
+                             ZoomInspector, RangeInspectors; useAutosave, useMusicPreview,
+                             useEditorShortcuts, DropZone, RecentProjects
   lib/
-    project/               ✓ types (mirror of the spec), defaults, segment helpers
-    vidz/                  ✓ zip.ts (dependency-free zip, zero-copy video slices),
-                             vidzFile.ts (read/write .vidz, validation, migration hook)
-    events/                ✓ events.json types, cursor track (normalize, resample, smooth)
-    audio/                 ✓ decode (mono + resample, Mediabunny), silence (adaptive threshold),
-                             chunks (split long audio at quiet moments)
-    captions/              ✓ cues (words → readable cues, cueAt), subtitles (SRT/VTT in output
-                             time), fillers (um/uh from word timings)
-    timeline/              ✓ timeMap: sourceToOutput / outputToSource (trims + speed)
-    render/                ✓ layout math, renderFrame, background presets, cursor (arrow + click
-                             effects), captions (burned-in, balanced wrapping), blur (boxes)
-    playback/              ✓ PlaybackController: <video> + skip cuts + speed
-    editor/                ✓ EditorStore (undo/redo), actions, recorder→editor handoff,
-                             extensionHandoff (receives a .vidz from the extension's ready page)
-    media/                 ✓ probe (Mediabunny), probeWithElement (fallback)
+    project/               ✓ types (mirror of the spec), defaults, segment helpers + presets
+    vidz/                  ✓ zip.ts (dependency-free zip, zero-copy slices), vidzFile.ts (read/
+                             write .vidz incl. assets/, validation, migration hook)
+    events/                ✓ events.json types, cursor lookup (normalize, resample, smooth)
+    audio/                 ✓ decode (mono/stereo + resample), silence (+ speech mask), chunks,
+                             music (position, gain, ducking curve)
+    captions/              ✓ cues, subtitles (SRT/VTT in output time), fillers
+    timeline/              ✓ timeMap (source↔output, cutPoints), layout (output spans, seams)
+    render/                ✓ renderFrame + layout, backgrounds, blur, shapes, cursor, keystrokes,
+                             text (+ textAnimation), captions, effects (looks, fades, transitions)
+    playback/              ✓ PlaybackController: <video> + skip cuts + speed (+ mute sped-up)
+    editor/                ✓ EditorStore (undo/redo), actions, assets (AssetStore), handoffs
+    media/                 ✓ probe, probeWithElement, thumbnails (worker)
     recording/             ✓ screenRecorder, mimeType
     time/                  ✓ clock (epochNow), formatTime
-    effects/               ✓ easing, camera (zoom crop), autoZoom (zooms from clicks),
-                             cursorTrack (smoothed cursor, press state, idle fade, click marks)
-    export/                ✓ exportVideo (decode → renderFrame → encode → MP4), worker
-                             protocol + client (progress, cancel)
-    storage/               ✓ projects.ts: autosaved projects in IndexedDB (video once, edits
-                             debounced), summaries for the "Recent projects" list on /editor
-    ai/                    ✓ protocol + aiClient (one worker per task), models, transcribe
-                             (Whisper via transformers.js, worker-only), byok/ (providers,
-                             settings in localStorage, prompts + parsers)
+    effects/               ✓ easing, camera (zoom crop) + cameraPath (dead zone + spring follow),
+                             autoZoom (from presses, follow mode), cursorTrack (cursor, presses,
+                             keys, idle fade)
+    export/                ✓ exportVideo (decode → renderFrame → encode → MP4), mixAudio (music
+                             + recording in 1 s blocks), worker protocol + client
+    storage/               ✓ projects.ts: IndexedDB projects (video, edits, assets, thumbnail),
+                             atomic read-modify-write updates
+    ai/                    ✓ protocol + aiClient (one worker per task: silences, transcribe,
+                             thumbnails, speech, waveform), models, transcribe, byok/
   types/                   ✓ DOM type extensions (screen-capture.d.ts)
-  workers/                 ✓ export.worker.ts, ai.worker.ts (silences, transcription)
-                             (planned: thumbnails)
+  workers/                 ✓ export.worker.ts, ai.worker.ts
 ```
 
 **State model.** `EditorStore` (`lib/editor/store.ts`) holds the project + UI selection, with
@@ -465,15 +469,16 @@ VIDZART_TEST_WHISPER=1 pnpm test:e2e   # also run the on-device captions test (d
 - [x] **Phase 5:** Cursor smoothing and click effects from the event log.
 - [x] **Phase 6:** AI: in-browser captions, silence/filler removal, then BYOK features.
 - [x] **"Buy me a coffee" link** (https://buymeacoffee.com/riteshs): landing page header/footer, editor start page.
+- [x] **Phase 7:** editor-style timeline (output time, cut seams, draggable playhead, zoom,
+      filmstrip), Cursorful-style zooms (automatic on open, dead-zone/spring camera), dark pro
+      studio redesign (tokens, tool rail, inspector), text overlays, shapes/spotlight/shortcut
+      badges, looks/fades/transitions, background music with ducking, landing page + dashboard.
 
 **Not planned:** accounts/auth, cloud storage, share links, payments, Vidzart-hosted AI.
 
-**Current phase:** Phase 4 done (extension records tab + events and hands the `.vidz` to the
-editor) and Phase 5 done (drawn cursor with smoothing that snaps onto clicks, press squeeze,
-hide-when-idle, ripple/pulse click effects; same `renderFrame` for preview and export).
-Phase 6 done: on-device captions (edit, style, SRT/VTT), Cut silences, Cut filler words, and
-BYOK writing tools (title, chapters, summary, translation) for 6 providers.
-Next: the deferred items below, then "Later".
+**Current phase:** Phase 7 done (2026-10-12). See the roadmap line above; design rules come from
+the ui-ux-pro-max skill (dark only, tokens in `globals.css`, lucide icons, ≥4.5:1 text, visible
+focus, reduced motion respected).
 
 **Known export limits:** audio in speed-changed pieces is silent (no time-stretching yet; the
 preview mutes them too, so it matches); projects over 4 GB can't be saved as .vidz (no Zip64).

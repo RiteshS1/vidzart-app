@@ -12,25 +12,22 @@ captures cursor and click events is in the companion repo **[vidzart-extension](
 
 ## Features
 
-- **Open** a `.vidz` project (from the extension, via "Open in editor" or a saved file) or **any
-  plain video file**. Or record your screen right here at `/record`.
-- **Style:** background presets, padding, rounded corners, shadow, aspect ratio (16:9, 9:16, 1:1,
-  4:3, original), with a live 60fps canvas preview.
-- **Edit:** trim start/end, cut ranges, **speed up** boring parts (1.5×–8×), **blur** boxes to
-  hide sensitive info, undo/redo, keyboard shortcuts.
-- **Zooms:** drag on the timeline, pick a target or follow the cursor; **Auto zoom** creates
-  them around your clicks (recordings from the extension).
-- **Cursor & clicks:** a smoothed cursor drawn from the click log (size, smoothing, hide when
-  idle) with ripple or pulse click effects.
-- **AI tab:**
-  - **Captions** on your device (Whisper in the browser): edit them, style them, burn them in,
-    or download `.srt` / `.vtt`.
-  - **Cut silences** and **cut filler words** ("um", "uh"), each one undo step.
-  - **Write with AI** using **your own API key** (Anthropic, OpenAI, Gemini, Groq, OpenRouter or
-    Mistral): title & description, YouTube chapters, summary, caption translation.
-- **Export MP4** (720p–4K, 30/60 fps) rendered in your browser with WebCodecs.
-- **Autosave** in your browser, with a "Recent projects" list; or **Save project** as a `.vidz`
-  file to keep or move.
+- **Record** with the Chrome extension (tab + clicks, so zooms are automatic) or right here at
+  `/record`; or **open** any WebM/MP4 or `.vidz` project.
+- **Automatic zooms** like Cursorful: extension recordings open already zoomed in on every click,
+  with a camera that glides after your cursor.
+- **Timeline like a real editor:** cut parts disappear (click the ✂ seam to restore), speed up
+  boring parts, drag the playhead, zoom the timeline, filmstrip thumbnails.
+- **Style:** backgrounds, padding, corners, shadow, aspect ratios; color looks; fades and
+  transitions at cuts.
+- **Cursor & keys:** smoothed cursor with click ripples; "⌘K"-style shortcut badges.
+- **Text & highlights:** titles, callouts, lower thirds (animated), arrows, boxes, circles,
+  spotlights, blur boxes for sensitive info.
+- **Audio:** background music that loops, fades and ducks under your voice; recording volume.
+- **AI:** on-device captions (Whisper), cut silences and filler words; optional BYOK writing
+  tools (title, chapters, summary, translation) with Anthropic, OpenAI, Gemini, Groq, OpenRouter
+  or Mistral.
+- **Export MP4** up to 4K at 30/60 fps in your browser; **autosave** and a projects dashboard.
 
 ## Privacy
 

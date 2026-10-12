@@ -16,6 +16,26 @@ coordinate mapping, encoding, browser/extension quirks). Newest entries at the t
 
 ## Log
 
+### 2026-10-12: Phase 7 (editor features, design pass)
+- **Two coordinate spaces, on purpose.** Blur boxes and shapes live in SOURCE frame space (they
+  stick to the recorded content and move with zooms); text overlays live in OUTPUT canvas space
+  (a title stays put while the camera moves). Picking the wrong one makes annotations drift.
+- **Single-frame transitions.** The export decodes exactly one source frame per output frame.
+  Dip-to-black, blur and zoom-punch only need that frame; a crossfade would need two. Choosing
+  effects that fit the pipeline beat rewriting it.
+- **Mix audio in blocks, not whole files.** Background music + the recording's kept pieces are
+  mixed 1 s at a time (decode just that block's source audio, add music × volume × fades × duck),
+  so memory is flat for long videos. Ducking reuses the silence detector's loudness analysis.
+- **IndexedDB read-modify-write must be one transaction.** Saving edits and saving assets each
+  read the record and wrote it back; interleaved, one could erase the other. `get` + `put` inside
+  a single readwrite transaction makes each update atomic.
+- **Workers can't use the page's web fonts.** Text overlays use system font stacks so the export
+  (OffscreenCanvas in a worker) renders the same glyphs as the preview.
+- **A live demo beats a video.** The landing hero runs the real `renderFrame` + auto zoom on a
+  mock app drawn on a canvas with a scripted user: no asset to host, always in sync with the code.
+- **Accessible names include visible values.** A slider labelled "Strength 70%" can't be found by
+  an exact "Strength" label; tests use `getByRole("slider", { name: /^Strength/ })`.
+
 ### 2026-10-12: Editors show output time; cameras need a dead zone
 - **Feedback:** after cutting, the cut part stayed on the timeline (hatched), which felt broken:
   in every video editor a cut is *gone*. The fix was conceptual: lay the timeline out in OUTPUT
