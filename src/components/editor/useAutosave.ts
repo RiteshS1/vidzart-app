@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import type { EditorStore } from "@/lib/editor/store";
-import { saveProjectEdits } from "@/lib/storage/projects";
+import { assetPaths, type AssetStore } from "@/lib/editor/assets";
+import { saveProjectAssets, saveProjectEdits } from "@/lib/storage/projects";
 
 export type AutosaveState = "idle" | "saving" | "saved" | "error";
 
@@ -14,7 +15,7 @@ const DEBOUNCE_MS = 800;
  * null until the stored copy (with the video) has been created; edits made
  * before that are saved as soon as it exists.
  */
-export function useAutosave(store: EditorStore, storedId: string | null): AutosaveState {
+export function useAutosave(store: EditorStore, assets: AssetStore, storedId: string | null): AutosaveState {
   const [state, setState] = useState<AutosaveState>("idle");
 
   useEffect(() => {
@@ -50,12 +51,23 @@ export function useAutosave(store: EditorStore, storedId: string | null): Autosa
       }
     };
     window.addEventListener("pagehide", flush);
+    // Asset files (music…) change rarely and are big: saved as they change,
+    // only the ones the project uses.
+    const saveAssets = () => {
+      setState("saving");
+      saveProjectAssets(storedId, assets.referencedBy(assetPaths(store.getState().project))).then(
+        () => setState("saved"),
+        () => setState("error"),
+      );
+    };
+    const unsubscribeAssets = assets.subscribe(saveAssets);
     return () => {
+      unsubscribeAssets();
       unsubscribe();
       window.removeEventListener("pagehide", flush);
       flush();
     };
-  }, [store, storedId]);
+  }, [store, assets, storedId]);
 
   return state;
 }

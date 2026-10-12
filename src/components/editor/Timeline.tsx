@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftToLine, ArrowRightToLine, EyeOff, Film, Gauge, Minus, Plus, Redo2, Scissors, Shapes, Type, Undo2, ZoomIn } from "lucide-react";
+import { ArrowLeftToLine, ArrowRightToLine, EyeOff, Film, Gauge, Minus, Music, Plus, Redo2, Scissors, Shapes, Type, Undo2, ZoomIn } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent } from "react";
 import { runAiTask } from "@/lib/ai/aiClient";
 import { addZoomAt, cutSelectedRange, editSegments, trimEndFrom, trimStartTo } from "@/lib/editor/actions";
@@ -183,6 +183,7 @@ export function Timeline({ source }: { source: Blob }) {
   const tickLabel = (t: number) => (tickStep < 1_000 ? formatTime(t) : formatTime(t).replace(/\.\d$/, ""));
 
   const rangeSpan = range ? outputSpan(map, range.start, range.end) : null;
+  const hasMusic = useEditor((s) => Boolean(s.project.audio?.music));
 
   return (
     <section className="flex flex-col gap-2 select-none" aria-label="Timeline">
@@ -249,6 +250,7 @@ export function Timeline({ source }: { source: Blob }) {
         <LaneLabel icon={EyeOff}>Blur</LaneLabel>
         <LaneLabel icon={Shapes}>Shapes</LaneLabel>
         <LaneLabel icon={Type}>Text</LaneLabel>
+        {hasMusic && <LaneLabel icon={Music}>Music</LaneLabel>}
       </div>
       <div ref={scrollRef} className="min-w-0 flex-1 overflow-x-auto overflow-y-hidden px-2 pb-1" data-testid="timeline-scroll">
         <div ref={contentRef} className="relative flex flex-col gap-1" style={{ width: width || "100%" }}>
@@ -310,6 +312,7 @@ export function Timeline({ source }: { source: Blob }) {
           <SegmentLane kind="blur" toMs={toSource} place={place} duration={duration} />
           <SegmentLane kind="shape" toMs={toSource} place={place} duration={duration} />
           <SegmentLane kind="text" toMs={toSource} place={place} duration={duration} />
+          {hasMusic && <MusicLane width={width} outDuration={outDuration} />}
 
           {/* playhead: line across everything, with a handle on the ruler to drag */}
           <div
@@ -390,5 +393,63 @@ function Filmstrip({ source, width, map }: { source: Blob; width: number; map: T
       className="pointer-events-none absolute inset-0 h-full w-full opacity-80"
       aria-hidden
     />
+  );
+}
+
+/**
+ * The background music on the output timeline: a waveform from 0:00 until
+ * the music ends (repeated when it loops). Peaks are computed once per file
+ * in the worker.
+ */
+function MusicLane({ width, outDuration }: { width: number; outDuration: number }) {
+  const { assets } = useEditorContext();
+  const music = useEditor((s) => s.project.audio?.music ?? null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [wave, setWave] = useState<{ src: string; peaks: Float32Array; durationMs: number } | null>(null);
+  const src = music?.src;
+
+  useEffect(() => {
+    const file = src ? assets.get(src) : undefined;
+    if (!src || !file) return;
+    const task = runAiTask({ type: "waveform", audio: file, bins: 800 });
+    task.done.then((w) => w && setWave({ src, ...w }), () => {});
+    return () => task.cancel();
+  }, [src, assets]);
+
+  const current = wave && wave.src === src ? wave : null;
+  const coverMs = current ? (music?.loop ? outDuration : Math.min(outDuration, current.durationMs)) : outDuration;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext("2d");
+    if (!canvas || !ctx || !current || width === 0) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = Math.max(1, Math.round((coverMs / outDuration) * width));
+    canvas.width = w * dpr;
+    canvas.height = 32 * dpr;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.55)";
+    const pxPerMs = (w * dpr) / coverMs;
+    for (let x = 0; x < canvas.width; x++) {
+      const ms = (x / pxPerMs) % current.durationMs; // loops repeat the waveform
+      const peak = current.peaks[Math.floor((ms / current.durationMs) * current.peaks.length)] ?? 0;
+      const h = Math.max(1, peak * canvas.height * 0.9);
+      ctx.fillRect(x, (canvas.height - h) / 2, 1, h);
+    }
+  }, [current, width, coverMs, outDuration]);
+
+  return (
+    <div data-testid="music-lane" className="relative h-8 rounded-md bg-black/[.04] dark:bg-white/[.05]">
+      <div
+        className="absolute inset-y-1 left-0 overflow-hidden rounded-sm bg-emerald-700/70"
+        style={{ width: `${(coverMs / outDuration) * 100}%` }}
+        title={music?.name}
+      >
+        <canvas ref={canvasRef} className="h-full w-full" aria-hidden />
+        <span className="pointer-events-none absolute inset-y-0 left-2 flex items-center text-[10px] font-semibold text-white drop-shadow">
+          {music?.name}
+        </span>
+      </div>
+    </div>
   );
 }

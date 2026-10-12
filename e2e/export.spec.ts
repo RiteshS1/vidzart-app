@@ -157,3 +157,35 @@ test("a speed-up shortens the output, in the preview and the exported MP4", asyn
   const input = new Input({ formats: ALL_FORMATS, source: new BufferSource(readFileSync(path)) });
   expect(Math.abs((await input.computeDuration()) - expected)).toBeLessThan(0.2);
 });
+
+test("changing the recording's volume mixes its audio (with a cut) into a correct MP4", async ({ page }, testInfo) => {
+  test.setTimeout(120_000);
+  await page.goto("/editor");
+  await page.getByLabel("Choose a video file").setInputFiles({ name: "clip.webm", mimeType: "video/webm", buffer: video });
+  await expect(page.getByTestId("file-name")).toHaveText("clip.webm");
+  // A cut in the middle, so the mixer has to stitch two pieces.
+  const track = page.getByTestId("timeline-track");
+  const box = (await track.boundingBox())!;
+  await page.mouse.move(box.x + box.width * 0.4, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 4 });
+  await page.mouse.up();
+  await page.getByRole("button", { name: "Cut selection" }).click();
+  await page.getByRole("tab", { name: "Audio" }).click();
+  await page.getByRole("slider", { name: /^Recording volume/ }).fill("0.5");
+  const expected = toSeconds(await page.getByTestId("output-duration").textContent());
+
+  await page.getByRole("button", { name: "Export MP4" }).click();
+  const dialog = page.getByRole("dialog", { name: "Export MP4" });
+  await dialog.getByRole("button", { name: "720p" }).click();
+  await dialog.getByRole("button", { name: "Export", exact: true }).click();
+  await expect(dialog.getByTestId("export-summary")).toBeVisible({ timeout: 90_000 });
+  const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("link", { name: "Download MP4" }).click()]);
+  const path = testInfo.outputPath("mixed.mp4");
+  await download.saveAs(path);
+  const input = new Input({ formats: ALL_FORMATS, source: new BufferSource(readFileSync(path)) });
+  const audioTrack = await input.getPrimaryAudioTrack();
+  expect(audioTrack?.codec).toMatch(/aac|opus/);
+  expect(await audioTrack!.getNumberOfChannels()).toBe(2);
+  expect(Math.abs((await input.computeDuration()) - expected)).toBeLessThan(0.2);
+});

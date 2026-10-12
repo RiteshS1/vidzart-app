@@ -22,7 +22,7 @@ type State =
   | { kind: "error"; message: string };
 
 export function ExportDialog(props: { video: File; events: VidzEvents | null; name: string; onClose: () => void }) {
-  const { store, controller } = useEditorContext();
+  const { store, controller, assets } = useEditorContext();
   const dialogRef = useRef<HTMLDialogElement>(null);
   const runningRef = useRef<RunningExport | null>(null);
   const [state, setState] = useState<State>({ kind: "setup" });
@@ -51,8 +51,16 @@ export function ExportDialog(props: { video: File; events: VidzEvents | null; na
   const start = async () => {
     const startedAt = performance.now();
     setState({ kind: "running", fraction: 0, startedAt });
+    const project = store.getState().project;
+    const musicSrc = project.audio?.music?.src;
     const running = startExport(
-      { video: props.video, project: store.getState().project, events: props.events, options: { longSide, fps } },
+      {
+        video: props.video,
+        music: musicSrc ? (assets.get(musicSrc) ?? null) : null,
+        project,
+        events: props.events,
+        options: { longSide, fps },
+      },
       (fraction) => setState({ kind: "running", fraction, startedAt }),
     );
     runningRef.current = running;

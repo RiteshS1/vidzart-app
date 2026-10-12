@@ -28,7 +28,7 @@ async function sessionFromVideo(file: File, url: string): Promise<Omit<Session, 
     });
   }
   const project = createProject({ duration: info.durationMs, width: info.width, height: info.height, fps: info.fps });
-  return { name: file.name, video: file, project, events: null, autoZoomOnOpen: false };
+  return { name: file.name, video: file, project, events: null, autoZoomOnOpen: false, assets: {} };
 }
 
 const errorText = (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback);
@@ -65,6 +65,7 @@ export default function Editor() {
             video: contents.video,
             project: contents.project,
             events: contents.events,
+            assets: contents.assets,
             // A fresh recording from the extension: add the zooms right away,
             // like Cursorful. Not for projects that already have edits (a
             // saved .vidz you're continuing), so deleted zooms stay deleted.
@@ -104,7 +105,15 @@ export default function Editor() {
         if (!stored) throw new Error("This project is no longer saved in this browser.");
         const url = URL.createObjectURL(stored.video);
         show(
-          { name: stored.name, video: stored.video, project: stored.project, events: stored.events, storedId: id, autoZoomOnOpen: false },
+          {
+            name: stored.name,
+            video: stored.video,
+            project: stored.project,
+            events: stored.events,
+            assets: stored.assets ?? {},
+            storedId: id,
+            autoZoomOnOpen: false,
+          },
           url,
           attempt,
         );

@@ -4,12 +4,15 @@ import { createContext, useContext, useSyncExternalStore } from "react";
 import type { CursorLookup } from "@/lib/effects/camera";
 import type { CursorTrack } from "@/lib/effects/cursorTrack";
 import type { VidzProject } from "@/lib/project/types";
+import type { AssetStore } from "@/lib/editor/assets";
 import type { EditorState, EditorStore } from "@/lib/editor/store";
 import type { PlaybackController } from "@/lib/playback/PlaybackController";
 import type { TimeMap } from "@/lib/timeline/timeMap";
 
 export interface EditorContextValue {
   store: EditorStore;
+  /** Music and other files the project references (not in undo history). */
+  assets: AssetStore;
   controller: PlaybackController;
   video: HTMLVideoElement;
   /** Memoized: returns the same TimeMap object until segments change. */

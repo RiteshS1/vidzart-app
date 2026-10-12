@@ -7,6 +7,7 @@ import {
   Film,
   FolderOpen,
   MousePointer2,
+  Music,
   Palette,
   Shapes,
   Sparkles,
@@ -17,6 +18,7 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { applyAutoZooms } from "@/lib/editor/actions";
+import { AssetStore, assetPaths } from "@/lib/editor/assets";
 import { EditorStore } from "@/lib/editor/store";
 import { cursorTrackCache } from "@/lib/effects/cursorTrack";
 import { createCursorLookup } from "@/lib/events/cursor";
@@ -30,6 +32,7 @@ import { EditorContext, useEditor, useEditorContext, type EditorContextValue } f
 import { ExportDialog } from "./ExportDialog";
 import { PreviewCanvas } from "./PreviewCanvas";
 import { AiPanel } from "./AiPanel";
+import { AudioPanel } from "./AudioPanel";
 import { CaptionsTool } from "./CaptionsTool";
 import { EffectsPanel } from "./EffectsPanel";
 import { SelectedSegmentInspector } from "./RangeInspectors";
@@ -41,6 +44,7 @@ import { Timeline } from "./Timeline";
 import { Transport } from "./Transport";
 import { useAutosave } from "./useAutosave";
 import { useEditorShortcuts } from "./useEditorShortcuts";
+import { useMusicPreview } from "./useMusicPreview";
 
 export interface Session {
   /** What the user opened (a video or a .vidz), for display and file names. */
@@ -54,11 +58,14 @@ export interface Session {
   storedId: string | null;
   /** Add automatic zooms as soon as the editor opens (fresh extension recordings). */
   autoZoomOnOpen: boolean;
+  /** Files under assets/ (music…), as loaded; edited through the AssetStore. */
+  assets: Record<string, Blob>;
 }
 
 export function Workspace({ session, onClose }: { session: Session; onClose: () => void }) {
   // One store per opened file (the parent re-mounts us with a new `key`).
   const [store] = useState(() => new EditorStore(session.project));
+  const [assets] = useState(() => new AssetStore(session.assets));
   // The <video> is the frame source for the preview. It's created via a
   // callback ref, so we know when the element exists before building the
   // controller around it.
@@ -80,8 +87,16 @@ export function Workspace({ session, onClose }: { session: Session; onClose: () 
       ? createCursorLookup(session.events, { offsetMs: session.project.source.eventsOffsetMs ?? 0 })
       : undefined;
     const getCursorTrack = cursorTrackCache(session.events);
-    return { store, video, getTimeMap, cursorAt, getCursorTrack, controller: new PlaybackController(video, getTimeMap) };
-  }, [store, video, session.events, session.project.source.eventsOffsetMs]);
+    return {
+      store,
+      assets,
+      video,
+      getTimeMap,
+      cursorAt,
+      getCursorTrack,
+      controller: new PlaybackController(video, getTimeMap),
+    };
+  }, [store, assets, video, session.events, session.project.source.eventsOffsetMs]);
 
   return (
     <>
@@ -98,8 +113,8 @@ export function Workspace({ session, onClose }: { session: Session; onClose: () 
 }
 
 function TopBar({ session, onClose }: { session: Session; onClose: () => void }) {
-  const { store } = useEditorContext();
-  const autosave = useAutosave(store, session.storedId);
+  const { store, assets } = useEditorContext();
+  const autosave = useAutosave(store, assets, session.storedId);
   const [status, setStatus] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
   const clickCount = useMemo(
@@ -128,6 +143,7 @@ function TopBar({ session, onClose }: { session: Session; onClose: () => void })
       videoName: isMp4 ? "video.mp4" : "video.webm",
       events: session.events,
       appVersion: APP_VERSION,
+      assets: assets.referencedBy(assetPaths(store.getState().project)),
     });
     // Download via a temporary <a download>: no permissions, no server.
     const url = URL.createObjectURL(blob);
@@ -210,10 +226,11 @@ function TopBar({ session, onClose }: { session: Session; onClose: () => void })
   );
 }
 
-type ToolId = "style" | "text" | "shapes" | "effects" | "cursor" | "captions" | "ai";
+type ToolId = "style" | "text" | "shapes" | "effects" | "audio" | "cursor" | "captions" | "ai";
 
 function EditorLayout({ value, session }: { value: EditorContextValue; session: Session }) {
   useEditorShortcuts(value);
+  useMusicPreview(value, session.video);
   const { controller } = value;
   useEffect(() => () => controller.pause(), [controller]);
 
@@ -252,6 +269,7 @@ function Tools({ session }: { session: Session }) {
     { id: "text", label: "Text", icon: Type, available: true },
     { id: "shapes", label: "Shapes", icon: Shapes, available: true },
     { id: "effects", label: "Effects", icon: Wand2, available: true },
+    { id: "audio", label: "Audio", icon: Music, available: true },
     // Only recordings with a click log have a cursor to draw.
     { id: "cursor", label: "Cursor", icon: MousePointer2, available: Boolean(cursorAt) },
     { id: "captions", label: "Captions", icon: CaptionsIcon, available: true },
@@ -300,6 +318,9 @@ function Tools({ session }: { session: Session }) {
         </ToolPanel>
         <ToolPanel id="effects" active={tool}>
           <EffectsPanel />
+        </ToolPanel>
+        <ToolPanel id="audio" active={tool}>
+          <AudioPanel />
         </ToolPanel>
         {cursorAt && (
           <ToolPanel id="cursor" active={tool}>
