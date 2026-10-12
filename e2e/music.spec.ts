@@ -67,12 +67,12 @@ test("music is mixed into the export, saved in the .vidz and kept across reloads
   await page.getByRole("slider", { name: /^Fade out/ }).fill("0");
 
   // Export and listen: Chrome decodes the MP4's audio for us.
-  await page.getByRole("button", { name: "Export MP4" }).click();
-  const dialog = page.getByRole("dialog", { name: "Export MP4" });
+  await page.getByRole("button", { name: "Export video" }).click();
+  const dialog = page.getByRole("dialog", { name: "Export video" });
   await dialog.getByRole("button", { name: "720p" }).click();
   await dialog.getByRole("button", { name: "Export", exact: true }).click();
   await expect(dialog.getByTestId("export-summary")).toContainText("AAC", { timeout: 90_000 });
-  const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("link", { name: "Download MP4" }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("link", { name: /^Download \./ }).click()]);
   const mp4 = readFileSync(await download.path());
   const levels = await page.evaluate(async (b64) => {
     const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
@@ -159,12 +159,12 @@ test("mixing the recording's audio with music has no clicks between blocks", asy
   // Silent music: what we inspect is the recording's tone going through the mixer.
   await page.getByRole("slider", { name: /^Music volume/ }).fill("0");
 
-  await page.getByRole("button", { name: "Export MP4" }).click();
-  const dialog = page.getByRole("dialog", { name: "Export MP4" });
+  await page.getByRole("button", { name: "Export video" }).click();
+  const dialog = page.getByRole("dialog", { name: "Export video" });
   await dialog.getByRole("button", { name: "720p" }).click();
   await dialog.getByRole("button", { name: "Export", exact: true }).click();
   await expect(dialog.getByTestId("export-summary")).toBeVisible({ timeout: 90_000 });
-  const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("link", { name: "Download MP4" }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("link", { name: /^Download \./ }).click()]);
   const mp4 = readFileSync(await download.path());
   const clicks = await page.evaluate(async (b64) => {
     const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));

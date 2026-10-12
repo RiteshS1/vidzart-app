@@ -2,11 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { startExport, type RunningExport } from "@/lib/export/exportClient";
-import { exportSize, type ExportResult } from "@/lib/export/exportVideo";
+import { EXPORT_FORMATS, exportSize, type ExportFormat, type ExportResult } from "@/lib/export/exportVideo";
 import type { VidzEvents } from "@/lib/events/types";
 import { formatTime } from "@/lib/time/formatTime";
 import { useEditorContext } from "./EditorContext";
-import { button, panelLabel, primaryButton } from "./styles";
+import { button, panelLabel, primaryButton, segment } from "./styles";
 
 const RESOLUTIONS = [
   { label: "720p", longSide: 1280 },
@@ -27,6 +27,7 @@ export function ExportDialog(props: { video: File; events: VidzEvents | null; na
   const runningRef = useRef<RunningExport | null>(null);
   const [state, setState] = useState<State>({ kind: "setup" });
   const [longSide, setLongSide] = useState(1920);
+  const [format, setFormat] = useState<ExportFormat>("mp4");
   const [fps, setFps] = useState(() => (store.getState().project.source.fps >= 50 ? 60 : 30));
   const project = store.getState().project;
   const size = exportSize(project, longSide);
@@ -59,7 +60,7 @@ export function ExportDialog(props: { video: File; events: VidzEvents | null; na
         music: musicSrc ? (assets.get(musicSrc) ?? null) : null,
         project,
         events: props.events,
-        options: { longSide, fps },
+        options: { longSide, fps, format },
       },
       (fraction) => setState({ kind: "running", fraction, startedAt }),
     );
@@ -99,11 +100,28 @@ export function ExportDialog(props: { video: File; events: VidzEvents | null; na
       className="m-auto w-[min(92vw,520px)] rounded-xl bg-background p-6 text-foreground shadow-2xl backdrop:bg-black/60"
     >
       <h2 id="export-title" className="mb-4 text-lg font-semibold">
-        Export MP4
+        Export video
       </h2>
 
       {(state.kind === "setup" || state.kind === "error") && (
         <div className="flex flex-col gap-5">
+          <fieldset className="flex flex-col gap-2">
+            <legend className={panelLabel}>Format</legend>
+            <div className="mt-2 grid grid-cols-3 gap-1" role="group" aria-label="Format">
+              {(Object.keys(EXPORT_FORMATS) as ExportFormat[]).map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  aria-pressed={format === key}
+                  onClick={() => setFormat(key)}
+                  className={`${segment(format === key)} py-2 text-sm`}
+                >
+                  {EXPORT_FORMATS[key].label}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-ink-muted">{EXPORT_FORMATS[format].description}</p>
+          </fieldset>
           <fieldset className="flex flex-col gap-2">
             <legend className={panelLabel}>Resolution</legend>
             <div className="mt-2 grid grid-cols-4 gap-1">
@@ -194,15 +212,19 @@ export function ExportDialog(props: { video: File; events: VidzEvents | null; na
           <p className="text-sm opacity-70" data-testid="export-summary">
             {state.result.width}×{state.result.height} · {formatTime(state.result.durationMs)} ·{" "}
             {(state.result.blob.size / 1_000_000).toFixed(1)} MB · {state.result.videoCodec.toUpperCase()}
-            {state.result.audioCodec ? ` + ${state.result.audioCodec.toUpperCase()}` : " (no audio)"} · took{" "}
+            {state.result.audioCodec ? ` + ${state.result.audioCodec.toUpperCase()}` : " (no audio)"} · {state.result.extension.toUpperCase()} · took{" "}
             {state.seconds.toFixed(1)}s
           </p>
           <div className="flex justify-end gap-2">
             <button type="button" className={button} onClick={close}>
               Close
             </button>
-            <a href={state.url} download={`${props.name.replace(/\.[^.]+$/, "")}.mp4`} className={primaryButton}>
-              Download MP4
+            <a
+              href={state.url}
+              download={`${props.name.replace(/\.[^.]+$/, "")}.${state.result.extension}`}
+              className={primaryButton}
+            >
+              Download .{state.result.extension}
             </a>
           </div>
         </div>

@@ -75,8 +75,8 @@ test("exports an MP4 with the edits applied", async ({ page }, testInfo) => {
   await page.keyboard.press("z");
   const expected = toSeconds(await page.getByTestId("output-duration").textContent());
 
-  await page.getByRole("button", { name: "Export MP4" }).click();
-  const dialog = page.getByRole("dialog", { name: "Export MP4" });
+  await page.getByRole("button", { name: "Export video" }).click();
+  const dialog = page.getByRole("dialog", { name: "Export video" });
   await dialog.getByRole("button", { name: "720p" }).click();
   await expect(dialog.getByTestId("export-size")).toHaveText("1280×720");
   await dialog.getByRole("button", { name: "30 fps" }).click();
@@ -88,7 +88,7 @@ test("exports an MP4 with the edits applied", async ({ page }, testInfo) => {
 
   const [download] = await Promise.all([
     page.waitForEvent("download"),
-    dialog.getByRole("link", { name: "Download MP4" }).click(),
+    dialog.getByRole("link", { name: /^Download \./ }).click(),
   ]);
   expect(download.suggestedFilename()).toBe("clip.mp4");
   const path = testInfo.outputPath("clip.mp4");
@@ -113,8 +113,8 @@ test("exports an MP4 with the edits applied", async ({ page }, testInfo) => {
 test("an export can be canceled", async ({ page }) => {
   await page.goto("/editor");
   await page.getByLabel("Choose a video file").setInputFiles({ name: "clip.webm", mimeType: "video/webm", buffer: video });
-  await page.getByRole("button", { name: "Export MP4" }).click();
-  const dialog = page.getByRole("dialog", { name: "Export MP4" });
+  await page.getByRole("button", { name: "Export video" }).click();
+  const dialog = page.getByRole("dialog", { name: "Export video" });
   await dialog.getByRole("button", { name: "4K" }).click();
   await dialog.getByRole("button", { name: "Export", exact: true }).click();
   await expect(dialog.getByRole("progressbar")).toBeVisible();
@@ -146,12 +146,12 @@ test("a speed-up shortens the output, in the preview and the exported MP4", asyn
   const expected = toSeconds(await page.getByTestId("output-duration").textContent());
   expect(expected).toBeLessThan(full * 0.7);
 
-  await page.getByRole("button", { name: "Export MP4" }).click();
-  const dialog = page.getByRole("dialog", { name: "Export MP4" });
+  await page.getByRole("button", { name: "Export video" }).click();
+  const dialog = page.getByRole("dialog", { name: "Export video" });
   await dialog.getByRole("button", { name: "720p" }).click();
   await dialog.getByRole("button", { name: "Export", exact: true }).click();
   await expect(dialog.getByTestId("export-summary")).toBeVisible({ timeout: 90_000 });
-  const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("link", { name: "Download MP4" }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("link", { name: /^Download \./ }).click()]);
   const path = testInfo.outputPath("fast.mp4");
   await download.saveAs(path);
   const input = new Input({ formats: ALL_FORMATS, source: new BufferSource(readFileSync(path)) });
@@ -175,12 +175,12 @@ test("changing the recording's volume mixes its audio (with a cut) into a correc
   await page.getByRole("slider", { name: /^Recording volume/ }).fill("0.5");
   const expected = toSeconds(await page.getByTestId("output-duration").textContent());
 
-  await page.getByRole("button", { name: "Export MP4" }).click();
-  const dialog = page.getByRole("dialog", { name: "Export MP4" });
+  await page.getByRole("button", { name: "Export video" }).click();
+  const dialog = page.getByRole("dialog", { name: "Export video" });
   await dialog.getByRole("button", { name: "720p" }).click();
   await dialog.getByRole("button", { name: "Export", exact: true }).click();
   await expect(dialog.getByTestId("export-summary")).toBeVisible({ timeout: 90_000 });
-  const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("link", { name: "Download MP4" }).click()]);
+  const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("link", { name: /^Download \./ }).click()]);
   const path = testInfo.outputPath("mixed.mp4");
   await download.saveAs(path);
   const input = new Input({ formats: ALL_FORMATS, source: new BufferSource(readFileSync(path)) });
@@ -189,3 +189,31 @@ test("changing the recording's volume mixes its audio (with a cut) into a correc
   expect(await audioTrack!.getNumberOfChannels()).toBe(2);
   expect(Math.abs((await input.computeDuration()) - expected)).toBeLessThan(0.2);
 });
+
+for (const [format, ext, mime, codecRe] of [
+  ["WebM", "webm", /webm/i, /vp9|vp8|av1/],
+  ["MOV", "mov", /quicktime|mov/i, /avc|hevc/],
+] as const) {
+  test(`exports ${format} (.${ext}) with the right container and codec`, async ({ page }, testInfo) => {
+    test.setTimeout(120_000);
+    await page.goto("/editor");
+    await page.getByLabel("Choose a video file").setInputFiles({ name: "clip.webm", mimeType: "video/webm", buffer: video });
+    await expect(page.getByTestId("file-name")).toHaveText("clip.webm");
+    await page.getByRole("button", { name: "Export video" }).click();
+    const dialog = page.getByRole("dialog", { name: "Export video" });
+    await dialog.getByRole("group", { name: "Format" }).getByRole("button", { name: format }).click();
+    await dialog.getByRole("button", { name: "720p" }).click();
+    await dialog.getByRole("button", { name: "Export", exact: true }).click();
+    await expect(dialog.getByTestId("export-summary")).toContainText(`${ext.toUpperCase()}`, { timeout: 90_000 });
+    const [download] = await Promise.all([page.waitForEvent("download"), dialog.getByRole("link", { name: `Download .${ext}` }).click()]);
+    expect(download.suggestedFilename()).toBe(`clip.${ext}`);
+    const path = testInfo.outputPath(`clip.${ext}`);
+    await download.saveAs(path);
+    const input = new Input({ formats: ALL_FORMATS, source: new BufferSource(readFileSync(path)) });
+    expect((await input.getFormat()).mimeType).toMatch(mime);
+    const track = (await input.getPrimaryVideoTrack())!;
+    expect(track.codec).toMatch(codecRe);
+    expect(await track.getDisplayWidth()).toBe(1280); // 720p
+    expect(await input.getPrimaryAudioTrack()).not.toBeNull();
+  });
+}

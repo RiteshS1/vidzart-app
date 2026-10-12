@@ -212,8 +212,8 @@ function TopBar({ session, onClose }: { session: Session; onClose: () => void })
         <FolderOpen className="size-4" aria-hidden /> <span className="hidden lg:inline">Open another</span>
         <span className="sr-only lg:hidden">Open another</span>
       </button>
-      <button type="button" className={primaryButton} onClick={() => setExporting(true)}>
-        <Film className="size-4" aria-hidden /> Export MP4
+      <button type="button" className={primaryButton} onClick={() => setExporting(true)} aria-label="Export video">
+        <Film className="size-4" aria-hidden /> Export
       </button>
       {exporting && (
         <ExportDialog

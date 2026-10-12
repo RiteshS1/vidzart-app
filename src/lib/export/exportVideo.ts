@@ -13,16 +13,20 @@
 
 import {
   ALL_FORMATS,
+  type AudioCodec,
   AudioSampleSink,
   AudioSampleSource,
   BlobSource,
   BufferTarget,
   CanvasSource,
   Input,
+  MovOutputFormat,
   Mp4OutputFormat,
   Output,
   QUALITY_HIGH,
+  type VideoCodec,
   VideoSampleSink,
+  WebMOutputFormat,
   getFirstEncodableAudioCodec,
   getFirstEncodableVideoCodec,
 } from "mediabunny";
@@ -38,10 +42,43 @@ import { renderFrame } from "@/lib/render/renderFrame";
 import { buildTimeMap, cutPoints, outputToSource } from "@/lib/timeline/timeMap";
 import { MIX_RATE, mixAudio } from "./mixAudio";
 
+export type ExportFormat = "mp4" | "mov" | "webm";
+
+export interface FormatInfo {
+  label: string;
+  extension: string;
+  mimeType: string;
+  /** Codecs we prefer for this container, best first (the first the browser can encode wins). */
+  video: VideoCodec[];
+  audio: AudioCodec[];
+  description: string;
+}
+
+/**
+ * What each container is good for. MP4 plays everywhere; MOV is what Apple
+ * tools (Final Cut, iMovie, QuickTime) like best; WebM is the open web
+ * format (smaller files, great for embedding, not for Apple apps).
+ */
+export const EXPORT_FORMATS: Record<ExportFormat, FormatInfo> = {
+  mp4: { label: "MP4", extension: "mp4", mimeType: "video/mp4", video: ["avc", "hevc", "vp9", "av1"], audio: ["aac", "opus"], description: "Plays everywhere" },
+  mov: { label: "MOV", extension: "mov", mimeType: "video/quicktime", video: ["avc", "hevc"], audio: ["aac"], description: "For Apple apps and editors" },
+  webm: { label: "WebM", extension: "webm", mimeType: "video/webm", video: ["vp9", "vp8", "av1"], audio: ["opus", "vorbis"], description: "Open format, small files" },
+};
+
+function outputFormatFor(format: ExportFormat) {
+  // in-memory fastStart puts the index at the front of the file, so the
+  // file starts playing before it's fully loaded (MP4 and MOV only).
+  if (format === "webm") return new WebMOutputFormat();
+  if (format === "mov") return new MovOutputFormat({ fastStart: "in-memory" });
+  return new Mp4OutputFormat({ fastStart: "in-memory" });
+}
+
 export interface ExportOptions {
   /** Length of the output's longer side in pixels, e.g. 1920 for 1080p 16:9. */
   longSide: number;
   fps: number;
+  /** Container; default mp4. */
+  format?: ExportFormat;
 }
 
 export interface ExportJob {
@@ -55,6 +92,9 @@ export interface ExportJob {
 
 export interface ExportResult {
   blob: Blob;
+  format: ExportFormat;
+  mimeType: string;
+  extension: string;
   width: number;
   height: number;
   durationMs: number;
@@ -88,15 +128,23 @@ export async function exportVideo(
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) throw new Error("This browser can't render in a worker (no OffscreenCanvas 2D).");
 
-    // H.264 ("avc") first: it plays everywhere. Others only if the browser
-    // can't encode H.264 at this size.
-    const videoCodec = await getFirstEncodableVideoCodec(["avc", "hevc", "vp9", "av1"], size);
-    if (!videoCodec) throw new Error("This browser can't encode video at this size. Try a smaller resolution.");
+    // The container decides which codecs are allowed; we take the first one
+    // (in its order of preference) that this browser can encode at this size.
+    const formatName: ExportFormat = options.format ?? "mp4";
+    const formatInfo = EXPORT_FORMATS[formatName];
+    const outputFormat = outputFormatFor(formatName);
+    const supported = new Set<string>(outputFormat.getSupportedCodecs());
+    const videoCodec = await getFirstEncodableVideoCodec(
+      formatInfo.video.filter((c) => supported.has(c)),
+      size,
+    );
+    if (!videoCodec) {
+      throw new Error(`This browser can't encode ${formatInfo.label} video at this size. Try a smaller resolution or another format.`);
+    }
+    const audioCodecs = formatInfo.audio.filter((c) => supported.has(c));
 
     const output = new Output({
-      // in-memory fastStart puts the index at the front of the file, so the
-      // MP4 starts playing before it's fully downloaded/loaded.
-      format: new Mp4OutputFormat({ fastStart: "in-memory" }),
+      format: outputFormat,
       target: new BufferTarget(),
     });
     const videoSource = new CanvasSource(canvas, { codec: videoCodec, quality: QUALITY_HIGH, keyFrameInterval: 2 });
@@ -112,13 +160,13 @@ export async function exportVideo(
 
     let audio: { source: AudioSampleSource; codec: string } | null = null;
     if (mixing) {
-      const codec = await getFirstEncodableAudioCodec(["aac", "opus"], { numberOfChannels: 2, sampleRate: MIX_RATE });
+      const codec = await getFirstEncodableAudioCodec(audioCodecs, { numberOfChannels: 2, sampleRate: MIX_RATE });
       if (codec) {
         audio = { source: new AudioSampleSource({ codec, quality: QUALITY_HIGH }), codec };
         output.addAudioTrack(audio.source);
       }
     } else if (audioTrack && (await audioTrack.canDecode())) {
-      const codec = await getFirstEncodableAudioCodec(["aac", "opus"], {
+      const codec = await getFirstEncodableAudioCodec(audioCodecs, {
         numberOfChannels: await audioTrack.getNumberOfChannels(),
         sampleRate: await audioTrack.getSampleRate(),
       });
@@ -252,7 +300,10 @@ export async function exportVideo(
     const buffer = output.target.buffer;
     if (!buffer) throw new Error("The encoder produced no output.");
     return {
-      blob: new Blob([buffer], { type: "video/mp4" }),
+      blob: new Blob([buffer], { type: formatInfo.mimeType }),
+      format: formatName,
+      mimeType: formatInfo.mimeType,
+      extension: formatInfo.extension,
       width: size.width,
       height: size.height,
       durationMs: map.outputDuration,
