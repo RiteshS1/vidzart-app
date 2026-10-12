@@ -1,7 +1,7 @@
 // Pure helpers that return a NEW segments array (never mutate): the editor
 // store keeps old arrays around for undo, so mutation would corrupt history.
 
-import type { BlurSegment, Segment, SpeedSegment, TextSegment, TrimSegment, ZoomSegment } from "./types";
+import type { BlurSegment, Segment, ShapeSegment, SpeedSegment, TextSegment, TrimSegment, ZoomSegment } from "./types";
 
 /** Cuts shorter than this are almost certainly a mis-drag. */
 export const MIN_TRIM_MS = 50;
@@ -240,4 +240,48 @@ export function addText(
   const e = Math.min(duration, Math.max(start, end));
   if (e - s < MIN_RANGE_MS) return [...segments];
   return [...segments, { id: newSegmentId(), type: "text", start: s, end: e, ...structuredClone(preset) }];
+}
+
+// --- shapes & highlights -------------------------------------------------------
+
+export const SHAPE_KINDS: { kind: ShapeSegment["kind"]; label: string }[] = [
+  { kind: "arrow", label: "Arrow" },
+  { kind: "rect", label: "Box" },
+  { kind: "ellipse", label: "Circle" },
+  { kind: "spotlight", label: "Spotlight" },
+];
+
+const DEFAULT_SHAPE_RECT: Record<ShapeSegment["kind"], ShapeSegment["rect"]> = {
+  // Arrows point down-right into the middle of the frame.
+  arrow: { x: 0.3, y: 0.3, width: 0.15, height: 0.12 },
+  rect: { x: 0.38, y: 0.4, width: 0.24, height: 0.2 },
+  ellipse: { x: 0.4, y: 0.38, width: 0.2, height: 0.24 },
+  spotlight: { x: 0.33, y: 0.33, width: 0.34, height: 0.34 },
+};
+
+export function shapesOf(segments: readonly Segment[]): ShapeSegment[] {
+  return segments.filter((s): s is ShapeSegment => s.type === "shape").sort((a, b) => a.start - b.start);
+}
+
+/** Adds a shape over [start, end). Shapes may overlap each other. */
+export function addShape(
+  segments: readonly Segment[],
+  start: number,
+  end: number,
+  duration: number,
+  kind: ShapeSegment["kind"] = "rect",
+): Segment[] {
+  const s = Math.max(0, Math.min(start, end));
+  const e = Math.min(duration, Math.max(start, end));
+  if (e - s < MIN_RANGE_MS) return [...segments];
+  const shape: ShapeSegment = {
+    id: newSegmentId(),
+    type: "shape",
+    start: s,
+    end: e,
+    kind,
+    rect: { ...DEFAULT_SHAPE_RECT[kind] },
+    style: { color: kind === "spotlight" ? "#000000" : "#facc15", stroke: 0.008 },
+  };
+  return [...segments, shape];
 }

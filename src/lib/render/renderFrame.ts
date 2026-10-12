@@ -1,5 +1,6 @@
 // Draws one composed output frame: background → shadow → rounded video →
-// blur boxes → cursor and click effects → text overlays → captions.
+// blur boxes → shapes → cursor and click effects → shortcut badges → text
+// overlays → captions.
 //
 // This is THE render function. The preview calls it on every animation frame
 // with a <video> element as the source; the export worker (Phase 3) will call
@@ -15,7 +16,9 @@ import type { Background, VidzProject } from "@/lib/project/types";
 import { drawBlurs } from "./blur";
 import { drawCaption } from "./captions";
 import { drawCursorLayer } from "./cursor";
+import { drawKeystrokes } from "./keystrokes";
 import { layoutFrame, type Size } from "./layout";
+import { drawShapes } from "./shapes";
 import { drawTexts } from "./text";
 
 export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -94,6 +97,8 @@ export function renderFrame(
     // Blur boxes hide parts of the recording; they're under the cursor, so
     // the cursor stays visible while moving over a hidden area.
     drawBlurs(ctx, frame.image, frame.size, project.segments, timing.sourceTime, video, crop);
+    // Arrows, boxes, spotlights: also in source space, under the cursor.
+    drawShapes(ctx, project.segments, timing.sourceTime, video, crop, unit);
     // Cursor + click effects go on top of the video, inside the same rounded
     // clip, and through the same camera so they zoom with the page.
     if (timing.cursor) drawCursorLayer(ctx, timing.cursor, settings, timing.sourceTime, video, crop);
@@ -102,6 +107,9 @@ export function renderFrame(
     ctx.fillRect(video.x, video.y, video.width, video.height);
   }
   ctx.restore();
+
+  // Shortcut badges ("⌘K") from the event log.
+  if (timing.cursor) drawKeystrokes(ctx, timing.cursor, settings, timing.sourceTime, video, unit);
 
   // Text overlays: output-space, so outside the video clip and the camera.
   drawTexts(ctx, canvas, project.segments, timing.sourceTime);

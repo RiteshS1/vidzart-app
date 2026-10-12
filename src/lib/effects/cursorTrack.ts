@@ -35,8 +35,16 @@ export interface ClickMark extends Point {
   button: MouseButton;
 }
 
+export interface KeyPress {
+  /** Source time (offset applied). */
+  t: number;
+  combo: string;
+}
+
 export interface CursorTrack {
   at(sourceMs: number): CursorState;
+  /** Shortcut presses with from < t <= to, oldest first. */
+  keysIn(fromMs: number, toMs: number): KeyPress[];
   /** Clicks with from < t <= to, oldest first. */
   clicksIn(fromMs: number, toMs: number): ClickMark[];
   /** Size of one CSS pixel of the recorded page, normalized to the frame (it changes on resize). */
@@ -67,8 +75,10 @@ export function createCursorTrack(log: VidzEvents, options: CursorTrackOptions):
   const clicks: ClickMark[] = [];
   const ups: { t: number; button: MouseButton }[] = [];
   const moves: number[] = [];
+  const keys: KeyPress[] = [];
   for (const event of log.events) {
     const t = event.t + offset;
+    if (event.type === "key") keys.push({ t, combo: event.combo });
     if (event.type === "resize") {
       viewports.push({ t, width: event.width, height: event.height });
       continue;
@@ -123,6 +133,9 @@ export function createCursorTrack(log: VidzEvents, options: CursorTrackOptions):
     },
     clicksIn(from, to) {
       return marks.slice(upperBound(marks, from), upperBound(marks, to));
+    },
+    keysIn(from, to) {
+      return keys.slice(upperBound(keys, from), upperBound(keys, to));
     },
     cssPixelAt(t) {
       const vp = viewports[upperBound(viewports, t) - 1] ?? viewports[0]!;

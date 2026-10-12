@@ -19,6 +19,8 @@ export interface ProjectSettings {
   shadow: { enabled: boolean; blur: number; opacity: number; offsetY: number };
   cursor: { visible: boolean; scale: number; smoothing: number; hideWhenIdleMs?: number };
   clickEffect: { type: "none" | "ripple" | "pulse"; color: string };
+  /** "⌘K"-style badges from the key events in events.json; absent = hidden. */
+  keystrokes?: { visible: boolean; position: "bottom" | "top" };
 }
 
 export interface ZoomSegment {
@@ -85,7 +87,20 @@ export interface TextSegment {
   animation: { in: TextAnimation; out: TextAnimation };
 }
 
-export type Segment = ZoomSegment | TrimSegment | SpeedSegment | BlurSegment | TextSegment;
+/** An arrow, box, circle or spotlight, in SOURCE frame space (moves with zooms). */
+export interface ShapeSegment {
+  id: string;
+  type: "shape";
+  start: number;
+  end: number;
+  kind: "arrow" | "rect" | "ellipse" | "spotlight";
+  /** Normalized 0–1. Arrows go from (x, y) to (x + width, y + height), so width/height may be negative. */
+  rect: { x: number; y: number; width: number; height: number };
+  /** stroke: fraction of the output canvas's shorter side. */
+  style: { color: string; stroke: number };
+}
+
+export type Segment = ZoomSegment | TrimSegment | SpeedSegment | BlurSegment | TextSegment | ShapeSegment;
 
 export interface CaptionWord {
   start: number;
