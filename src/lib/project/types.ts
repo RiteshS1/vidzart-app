@@ -152,4 +152,23 @@ export interface VidzProject {
   segments: Segment[];
   /** Optional: absent until the user generates or adds captions. */
   captions?: Captions;
+  audio?: ProjectAudio;
+}
+
+export interface MusicTrack {
+  /** "assets/<file>" inside the .vidz. */
+  src: string;
+  name?: string;
+  volume: number;
+  fadeInMs: number;
+  fadeOutMs: number;
+  loop: boolean;
+  /** Turn the music down while someone speaks. */
+  duckUnderVoice: boolean;
+}
+
+export interface ProjectAudio {
+  /** 0–1, the recording's own sound; default 1. */
+  sourceVolume?: number;
+  music?: MusicTrack;
 }

@@ -47,6 +47,21 @@ function percentile(values: Float32Array, p: number): number {
   return sorted[Math.min(sorted.length - 1, Math.floor(p * sorted.length))] ?? -120;
 }
 
+/**
+ * Which 20 ms windows have sound (1) vs silence (0), with the same adaptive
+ * threshold as detectSilences. Null when there's no clear contrast (all
+ * silence or all sound), where any guess would be wrong.
+ */
+export function speechMask(samples: Float32Array, sampleRate: number): { mask: Uint8Array; windowMs: number } | null {
+  const db = windowLoudness(samples, sampleRate);
+  if (db.length === 0) return null;
+  const floor = Math.max(-70, percentile(db, 0.1));
+  const peak = percentile(db, 0.95);
+  if (peak - floor < 10) return null;
+  const threshold = floor + (peak - floor) * 0.25;
+  return { mask: Uint8Array.from(db, (d) => (d >= threshold ? 1 : 0)), windowMs: WINDOW_MS };
+}
+
 /** Silent ranges to cut, in ms, sorted. Empty when there's no clear speech/silence contrast. */
 export function detectSilences(samples: Float32Array, sampleRate: number, options: SilenceOptions = {}): TimeRange[] {
   const minSilenceMs = options.minSilenceMs ?? 700;
