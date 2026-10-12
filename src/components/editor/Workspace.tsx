@@ -2,6 +2,7 @@
 
 import {
   Captions as CaptionsIcon,
+  ChevronDown,
   ChevronLeft,
   Clapperboard,
   Download,
@@ -45,7 +46,7 @@ import { CaptionsTool } from "./CaptionsTool";
 import { EffectsPanel } from "./EffectsPanel";
 import { SelectedSegmentInspector } from "./RangeInspectors";
 import { CursorPanel, SettingsPanel } from "./SettingsPanel";
-import { button, primaryButton } from "./styles";
+import { button, panelLabel, primaryButton } from "./styles";
 import { ShapePanel } from "./ShapeTools";
 import { TextPanel } from "./TextTools";
 import { Timeline } from "./Timeline";
@@ -368,22 +369,49 @@ function EditorLayout({ value, session }: { value: EditorContextValue; session: 
   const { controller } = value;
   useEffect(() => () => controller.pause(), [controller]);
 
+  // Phone layout (below md): one column, preview on top, then EITHER the
+  // timeline OR the open tool's sheet (they share the same space, like most
+  // mobile editors), then the tool bar. md and up: preview + tool panel side
+  // by side with the timeline under both. State lives here because the
+  // timeline and the panel each need to know whether the sheet is open.
+  const [tool, setTool] = useState<ToolId>("style");
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const selectedType = useEditor((s) => s.project.segments.find((x) => x.id === s.selectedSegmentId)?.type ?? null);
+  const inspecting = selectedType !== null && selectedType !== "trim";
+  const sheetShown = sheetOpen || inspecting;
+
   return (
     // Respect the OS "reduce motion" setting for every Motion animation below.
     <MotionConfig reducedMotion="user">
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <main className="flex min-h-[260px] min-w-0 flex-1 flex-col bg-bg">
-          <div className="flex min-h-0 flex-1 p-4 lg:p-6">
+      <div className="flex min-h-0 flex-1 flex-col md:grid md:grid-cols-[minmax(0,1fr)_auto] md:grid-rows-[minmax(0,1fr)_auto]">
+        <main className="flex min-h-[120px] min-w-0 flex-1 flex-col bg-bg md:col-start-1 md:row-start-1">
+          <div className="flex min-h-0 flex-1 p-2 md:p-4 lg:p-6">
             <PreviewCanvas />
           </div>
-          <div className="flex justify-center px-4 pb-3">
+          <div className="flex justify-center px-3 pb-2 md:px-4 md:pb-3">
             <Transport />
           </div>
         </main>
-        <SidePanel session={session} />
-      </div>
-      <div className="shrink-0 border-t border-line bg-surface px-3 pt-2 pb-3">
-        <Timeline source={session.video} />
+        {/* Stays mounted while hidden, so its scroll/zoom state survives opening a tool. */}
+        <div
+          className={`shrink-0 border-t border-line bg-surface px-2 pt-2 pb-2 md:col-span-2 md:row-start-2 md:block md:px-3 md:pb-3 ${
+            sheetShown ? "hidden" : ""
+          }`}
+        >
+          <Timeline source={session.video} />
+        </div>
+        <SidePanel
+          session={session}
+          tool={tool}
+          inspecting={inspecting}
+          sheetShown={sheetShown}
+          onPickTool={(id) => {
+            // Tapping the open tool again closes the sheet (phone); elsewhere it just selects.
+            setSheetOpen(id === tool && sheetOpen && !inspecting ? false : true);
+            setTool(id);
+          }}
+          onCloseSheet={() => setSheetOpen(false)}
+        />
       </div>
     </MotionConfig>
   );
@@ -398,11 +426,22 @@ function EditorLayout({ value, session }: { value: EditorContextValue; session: 
  * Every tool panel stays mounted (just hidden), so a running AI task or a
  * half-typed caption survives switching tools or selecting things.
  */
-function SidePanel({ session }: { session: Session }) {
+function SidePanel({
+  session,
+  tool,
+  inspecting,
+  sheetShown,
+  onPickTool,
+  onCloseSheet,
+}: {
+  session: Session;
+  tool: ToolId;
+  inspecting: boolean;
+  sheetShown: boolean;
+  onPickTool: (id: ToolId) => void;
+  onCloseSheet: () => void;
+}) {
   const { store, cursorAt } = useEditorContext();
-  const [tool, setTool] = useState<ToolId>("style");
-  const selected = useEditor((s) => s.project.segments.find((x) => x.id === s.selectedSegmentId) ?? null);
-  const inspecting = selected !== null && selected.type !== "trim";
   const tools: { id: ToolId; label: string; icon: typeof Palette; available: boolean }[] = [
     { id: "style", label: "Style", icon: Palette, available: true },
     { id: "text", label: "Text", icon: Type, available: true },
@@ -416,11 +455,29 @@ function SidePanel({ session }: { session: Session }) {
   ];
 
   return (
-    <div className="flex min-h-0 shrink-0 flex-col-reverse border-line lg:flex-row lg:border-l">
+    // `contents` on a phone: the sheet and the tool bar become direct children of
+    // the column in EditorLayout. From md up it's the panel + rail on the right.
+    <div className="contents md:col-start-2 md:row-start-1 md:flex md:min-h-0 md:shrink-0 md:flex-row md:border-l md:border-line">
       <section
         aria-label="Tool settings"
-        className="relative max-h-[40vh] min-h-0 overflow-y-auto bg-surface lg:max-h-none lg:w-80"
+        className={`relative h-[46dvh] shrink-0 overflow-y-auto border-t border-line bg-surface md:block md:h-auto md:max-h-none md:w-72 md:border-t-0 lg:w-80 ${
+          sheetShown ? "" : "hidden"
+        }`}
       >
+        <div className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-surface px-4 py-1 md:hidden">
+          <span className={panelLabel}>{inspecting ? "Selected item" : tools.find((t) => t.id === tool)?.label}</span>
+          <button
+            type="button"
+            aria-label="Close panel"
+            onClick={() => {
+              store.setUi({ selectedSegmentId: null });
+              onCloseSheet();
+            }}
+            className="-mr-2 flex size-11 cursor-pointer items-center justify-center rounded-lg text-ink-muted hover:bg-surface-3 hover:text-ink"
+          >
+            <ChevronDown className="size-5" aria-hidden />
+          </button>
+        </div>
         <AnimatePresence initial={false}>
           {inspecting && (
             <motion.aside
@@ -476,7 +533,7 @@ function SidePanel({ session }: { session: Session }) {
         role="tablist"
         aria-label="Tools"
         aria-orientation="vertical"
-        className="flex shrink-0 gap-1 overflow-x-auto border-line bg-surface p-2 lg:w-[72px] lg:flex-col lg:border-l"
+        className="flex shrink-0 gap-1 overflow-x-auto border-t border-line bg-surface p-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:w-[72px] md:flex-col md:overflow-x-hidden md:overflow-y-auto md:border-t-0 md:border-l md:pb-2"
       >
         {tools
           .filter((t) => t.available)
@@ -491,11 +548,11 @@ function SidePanel({ session }: { session: Session }) {
                 aria-selected={tool === id}
                 aria-controls={`panel-${id}`}
                 onClick={() => {
-                  setTool(id);
+                  onPickTool(id);
                   // Picking a tool leaves the selected item's settings.
                   if (inspecting) store.setUi({ selectedSegmentId: null });
                 }}
-                className={`flex min-w-14 cursor-pointer flex-col items-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium transition-colors duration-150 ${
+                className={`flex min-h-12 min-w-16 cursor-pointer flex-col items-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium md:min-w-14 transition-colors duration-150 ${
                   active ? "bg-surface-3 text-ink" : "text-ink-muted hover:bg-surface-2 hover:text-ink"
                 }`}
               >

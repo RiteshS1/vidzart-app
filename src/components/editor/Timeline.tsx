@@ -187,7 +187,8 @@ export function Timeline({ source }: { source: Blob }) {
 
   return (
     <section className="flex flex-col gap-2 select-none" aria-label="Timeline">
-      <div className="flex flex-wrap items-center gap-2">
+      {/* Icons only up to lg so the whole row fits one line on a phone or tablet; labelled from lg. */}
+      <div className="flex items-center gap-1 overflow-x-auto md:flex-wrap md:gap-2 md:overflow-visible [&>*]:shrink-0 max-lg:[&_button]:w-10 max-lg:[&_button]:px-0">
         <button
           type="button"
           className={button}
@@ -195,7 +196,7 @@ export function Timeline({ source }: { source: Blob }) {
           onClick={() => cutSelectedRange(store)}
           title="Drag on the clips to select a range, then cut it (Delete)"
         >
-          <Scissors className="size-4" aria-hidden /> Cut selection
+          <Scissors className="size-4" aria-hidden /> <span className="sr-only lg:not-sr-only">Cut selection</span>
         </button>
         <button
           type="button"
@@ -203,7 +204,7 @@ export function Timeline({ source }: { source: Blob }) {
           onClick={() => trimStartTo(store, controller.getSourceTime())}
           title="Remove everything before the playhead ([)"
         >
-          <ArrowLeftToLine className="size-4" aria-hidden /> Trim start
+          <ArrowLeftToLine className="size-4" aria-hidden /> <span className="sr-only lg:not-sr-only">Trim start</span>
         </button>
         <button
           type="button"
@@ -211,7 +212,7 @@ export function Timeline({ source }: { source: Blob }) {
           onClick={() => trimEndFrom(store, controller.getSourceTime())}
           title="Remove everything after the playhead (])"
         >
-          Trim end <ArrowRightToLine className="size-4" aria-hidden />
+          <span className="sr-only lg:not-sr-only">Trim end</span> <ArrowRightToLine className="size-4" aria-hidden />
         </button>
         <button
           type="button"
@@ -219,7 +220,7 @@ export function Timeline({ source }: { source: Blob }) {
           onClick={() => addZoomAt(store, controller.getSourceTime())}
           title="Add a zoom at the playhead (Z)"
         >
-          <ZoomIn className="size-4" aria-hidden /> Add zoom
+          <ZoomIn className="size-4" aria-hidden /> <span className="sr-only lg:not-sr-only">Add zoom</span>
         </button>
         <span className="flex-1" />
         <div className="flex items-center gap-1" role="group" aria-label="Timeline zoom">
@@ -231,14 +232,14 @@ export function Timeline({ source }: { source: Blob }) {
           </button>
         </div>
         <button type="button" className={button} disabled={!canUndo} onClick={() => store.undo()} title="Undo (⌘Z)">
-          <Undo2 className="size-4" aria-hidden /> Undo
+          <Undo2 className="size-4" aria-hidden /> <span className="sr-only lg:not-sr-only">Undo</span>
         </button>
         <button type="button" className={button} disabled={!canRedo} onClick={() => store.redo()} title="Redo (⇧⌘Z)">
-          <Redo2 className="size-4" aria-hidden /> Redo
+          <Redo2 className="size-4" aria-hidden /> <span className="sr-only lg:not-sr-only">Redo</span>
         </button>
       </div>
 
-      <div className="flex">
+      <div className="flex max-h-[max(30dvh,7rem)] overflow-y-auto [@media(max-height:520px)]:max-h-24">
       {/* Lane names, aligned with the rows on the right (same heights + gap). */}
       <div className="flex w-20 shrink-0 flex-col gap-1 pr-2 text-[11px] font-medium text-ink-muted" aria-hidden>
         <div className="h-6" />

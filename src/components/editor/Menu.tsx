@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 // A small dropdown menu: a trigger button and a floating list of actions.
 // Closes on Escape, on a click outside, and after choosing an item; focus
@@ -16,7 +16,23 @@ export function Menu(props: {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
   const id = useId();
+
+  // The menu is anchored to its trigger's edge, which on a narrow screen can
+  // leave part of it off-screen. After it opens, measure and slide it back
+  // inside the viewport (before paint, so it never visibly jumps).
+  useLayoutEffect(() => {
+    const el = menuRef.current;
+    if (!open || !el) return;
+    el.style.transform = "";
+    const rect = el.getBoundingClientRect();
+    const margin = 8;
+    let dx = 0;
+    if (rect.left < margin) dx = margin - rect.left;
+    else if (rect.right > window.innerWidth - margin) dx = window.innerWidth - margin - rect.right;
+    if (dx !== 0) el.style.transform = `translateX(${dx}px)`;
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -54,10 +70,11 @@ export function Menu(props: {
       </button>
       {open && (
         <div
+          ref={menuRef}
           id={id}
           role="menu"
           aria-label={props.label}
-          className={`absolute top-full z-50 mt-2 w-72 rounded-xl border border-line-strong bg-surface p-1.5 shadow-2xl shadow-black/60 ${
+          className={`absolute top-full z-50 mt-2 w-72 max-w-[calc(100vw-1rem)] rounded-xl border border-line-strong bg-surface p-1.5 shadow-2xl shadow-black/60 ${
             props.align === "left" ? "left-0" : "right-0"
           }`}
         >
