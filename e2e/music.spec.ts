@@ -1,9 +1,8 @@
 import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
-import { readVidz } from "../src/lib/vidz/vidzFile";
 
 // Background music end to end: add a music file to a SILENT video, hear it
-// in the exported MP4, keep it in the .vidz and across a reload.
+// in the exported MP4, keep it in the saved project and across a reload.
 
 async function silentVideo(page: Page, ms: number): Promise<Buffer> {
   const bytes = await page.evaluate(async (duration) => {
@@ -50,7 +49,7 @@ function toneWav(): Buffer {
   return buf;
 }
 
-test("music is mixed into the export, saved in the .vidz and kept across reloads", async ({ page }, testInfo) => {
+test("music is mixed into the export, saved in the browser and kept across reloads", async ({ page }) => {
   test.setTimeout(120_000);
   await page.goto("/editor");
   const video = await silentVideo(page, 3000);
@@ -92,14 +91,10 @@ test("music is mixed into the export, saved in the .vidz and kept across reloads
   expect(levels.late).toBeGreaterThan(0.1); // looped
   await dialog.getByRole("button", { name: "Close" }).click();
 
-  // Save project: the music travels inside the .vidz.
-  const [saved] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Save project" }).click()]);
-  const path = testInfo.outputPath("music.vidz");
-  await saved.saveAs(path);
-  const contents = await readVidz(new Blob([new Uint8Array(readFileSync(path))]));
-  const src = contents.project.audio!.music!.src;
-  expect(src).toMatch(/^assets\/music-[0-9a-f]{8}\.wav$/);
-  expect(contents.assets[src]!.size).toBe(toneWav().length);
+  // Save in this browser (the music file is stored with the project).
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await page.getByRole("menuitem", { name: /Save in this browser/ }).click();
+  await expect(page.getByRole("status")).toContainText("Saved in this browser");
 
   // Autosave keeps the music file too: reload and reopen.
   await page.waitForTimeout(1500);

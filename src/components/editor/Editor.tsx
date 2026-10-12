@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listenForExtensionHandoff } from "@/lib/editor/extensionHandoff";
 import { takePendingVideo } from "@/lib/editor/handoff";
@@ -8,7 +9,7 @@ import { probeVideo, type VideoInfo } from "@/lib/media/probe";
 import { probeWithElement } from "@/lib/media/probeWithElement";
 import { createProject } from "@/lib/project/defaults";
 import { readVidz } from "@/lib/vidz/vidzFile";
-import { createStoredProject, getStoredProject } from "@/lib/storage/projects";
+import { createStoredProject, deleteStoredProject, getStoredProject, renameStoredProject } from "@/lib/storage/projects";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { DropZone } from "./DropZone";
 import { RecentProjects } from "./RecentProjects";
@@ -34,6 +35,7 @@ async function sessionFromVideo(file: File, url: string): Promise<Omit<Session, 
 const errorText = (e: unknown, fallback: string) => (e instanceof Error ? e.message : fallback);
 
 export default function Editor() {
+  const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -166,7 +168,19 @@ export default function Editor() {
               {notice}
             </p>
           )}
-          <Workspace key={session.url} session={session} onClose={() => setSession(null)} />
+          <Workspace
+            key={session.url}
+            session={session}
+            onClose={() => setSession(null)}
+            onRename={async (name) => {
+              if (session.storedId) await renameStoredProject(session.storedId, name).catch(() => {});
+              setSession((s) => (s ? { ...s, name } : s));
+            }}
+            onDeleted={async () => {
+              if (session.storedId) await deleteStoredProject(session.storedId).catch(() => {});
+              router.push("/projects");
+            }}
+          />
         </>
       ) : (
         <>

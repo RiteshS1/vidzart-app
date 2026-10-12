@@ -2,6 +2,7 @@
 // always do exactly the same thing.
 
 import { findFillers, withoutFillers } from "@/lib/captions/fillers";
+import { createProject } from "@/lib/project/defaults";
 import { generateAutoZooms } from "@/lib/effects/autoZoom";
 import type { VidzEvents } from "@/lib/events/types";
 import { addText, addTrim, addZoom, DEFAULT_TEXT_MS, removeSegment, TEXT_PRESETS } from "@/lib/project/segments";
@@ -135,6 +136,16 @@ export function removeFillerWords(store: EditorStore): number {
     captions: p.captions && { ...p.captions, cues: withoutFillers(p.captions.cues) },
   }));
   return cuts.length;
+}
+
+/**
+ * Puts the project back to how it started: default look, no cuts, zooms,
+ * text, captions or music. One undo step, so "Discard edits" is itself
+ * undoable. The recording (and its size/duration) is untouched.
+ */
+export function discardEdits(store: EditorStore): void {
+  store.edit((p) => ({ ...createProject({ ...p.source }), source: p.source }));
+  store.setUi({ selectedSegmentId: null, range: null });
 }
 
 /** Adds a text overlay at the playhead from a preset and selects it. */

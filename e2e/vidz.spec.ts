@@ -1,8 +1,7 @@
-import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
 import type { VidzEvents } from "../src/lib/events/types";
 import type { VidzProject } from "../src/lib/project/types";
-import { readVidz, writeVidz } from "../src/lib/vidz/vidzFile";
+import { writeVidz } from "../src/lib/vidz/vidzFile";
 import { readZip, writeZip } from "../src/lib/vidz/zip";
 
 // .vidz files are built in Node with the app's own writer, the same code the
@@ -280,35 +279,51 @@ test("plain videos have no auto zoom and no cursor follow", async ({ page }) => 
   await expect(page.getByRole("button", { name: "Follow cursor" })).toBeDisabled();
 });
 
-test("saves a project and opens it again with all edits", async ({ page }, testInfo) => {
+test("Save offers browser or download; discard and delete ask first", async ({ page }) => {
   await openFile(page, "plain.webm", video, "video/webm");
-  await page.keyboard.press("z"); // a zoom at 0s
+  await page.keyboard.press("z"); // a zoom
+  await page.keyboard.press("Escape");
   const track = page.getByTestId("timeline-track");
   const box = (await track.boundingBox())!;
   await track.click({ position: { x: box.width * 0.8, y: box.height / 2 } });
   await page.keyboard.press("]"); // trim the last 20%
-  await page.getByRole("button", { name: "Background: Ocean" }).click();
-
-  const [download] = await Promise.all([
-    page.waitForEvent("download"),
-    page.getByRole("button", { name: "Save project" }).click(),
-  ]);
-  expect(download.suggestedFilename()).toBe("plain.vidz");
-  const path = testInfo.outputPath("plain.vidz");
-  await download.saveAs(path);
-
-  // Read it back with the same code the app uses.
-  const saved = readFileSync(path);
-  const contents = await readVidz(new Blob([new Uint8Array(saved)]));
-  expect(contents.manifest.createdBy.app).toBe("vidzart-app");
-  expect(contents.project.segments.map((s) => s.type).sort()).toEqual(["trim", "zoom"]);
-  expect(contents.project.settings.background).toEqual({ type: "color", color: "#1e4d5c" });
-  expect(contents.video.size).toBe(video.length);
-
-  // And reopen it in the editor.
-  await openFile(page, "plain.vidz", saved, "application/zip");
   await expect(page.getByTestId("zoom-block")).toHaveCount(1);
   await expect(page.getByTestId("cut-seam")).toHaveCount(1);
+
+  // Save asks where: this browser, or a downloaded video. No .vidz anywhere.
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: /Save in this browser/ })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /Download video/ })).toBeVisible();
+  await expect(page.getByText(".vidz")).toHaveCount(0);
+  await page.getByRole("menuitem", { name: /Save in this browser/ }).click();
+  await expect(page.getByRole("status")).toContainText("Saved in this browser");
+
+  // Discard edits: asks first, then everything is gone; Undo brings it back.
+  await page.getByRole("button", { name: "Project menu" }).click();
+  await page.getByRole("menuitem", { name: /Discard all edits/ }).click();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(page.getByTestId("zoom-block")).toHaveCount(1);
+  await page.getByRole("button", { name: "Project menu" }).click();
+  await page.getByRole("menuitem", { name: /Discard all edits/ }).click();
+  await page.getByRole("button", { name: "Discard edits" }).click();
+  await expect(page.getByTestId("zoom-block")).toHaveCount(0);
+  await expect(page.getByTestId("cut-seam")).toHaveCount(0);
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(page.getByTestId("zoom-block")).toHaveCount(1);
+
+  // Rename.
+  await page.getByRole("button", { name: "Project menu" }).click();
+  await page.getByRole("menuitem", { name: "Rename project" }).click();
+  await page.getByLabel("Project name").fill("My launch demo");
+  await page.getByRole("button", { name: "Rename" }).click();
+  await expect(page.getByTestId("file-name")).toHaveText("My launch demo");
+
+  // Delete: asks first, then it's gone from the browser and the dashboard.
+  await page.getByRole("button", { name: "Project menu" }).click();
+  await page.getByRole("menuitem", { name: /Delete project/ }).click();
+  await page.getByRole("button", { name: "Delete project" }).click();
+  await expect(page).toHaveURL(/\/projects$/);
+  await expect(page.getByText("No projects yet")).toBeVisible();
 });
 
 test("shows a clear error for a broken .vidz", async ({ page }) => {

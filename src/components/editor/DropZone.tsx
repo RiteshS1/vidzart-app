@@ -30,9 +30,9 @@ export function DropZone(props: { onFile: (file: File) => void; error?: string |
       <span className="flex size-12 items-center justify-center rounded-2xl bg-surface-3" aria-hidden>
         <UploadCloud className="size-6 text-accent" />
       </span>
-      <p className="text-lg font-semibold">Drop a video or .vidz project here</p>
+      <p className="text-lg font-semibold">Drop a video here to start</p>
       <p className="text-sm text-ink-muted">
-        WebM, MP4 or a Vidzart project. It stays on your device; nothing is uploaded.
+        MP4, MOV or WebM. It stays on your device; nothing is uploaded.
       </p>
       <button
         type="button"
@@ -45,7 +45,7 @@ export function DropZone(props: { onFile: (file: File) => void; error?: string |
       <input
         ref={inputRef}
         type="file"
-        accept="video/*,.vidz"
+        accept="video/*"
         aria-label="Choose a video file"
         className="hidden"
         onChange={(event) => {

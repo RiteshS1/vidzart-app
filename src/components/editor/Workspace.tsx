@@ -7,6 +7,12 @@ import {
   Download,
   Film,
   FolderOpen,
+  HardDrive,
+  MoreHorizontal,
+  Pencil,
+  RotateCcw,
+  Save,
+  Trash2,
   MousePointer2,
   Music,
   Palette,
@@ -18,7 +24,8 @@ import {
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { applyAutoZooms } from "@/lib/editor/actions";
+import { applyAutoZooms, discardEdits } from "@/lib/editor/actions";
+import { saveProjectAssets, saveProjectEdits } from "@/lib/storage/projects";
 import { AssetStore, assetPaths } from "@/lib/editor/assets";
 import { EditorStore } from "@/lib/editor/store";
 import { cursorTrackCache } from "@/lib/effects/cursorTrack";
@@ -27,12 +34,12 @@ import type { VidzEvents } from "@/lib/events/types";
 import { PlaybackController } from "@/lib/playback/PlaybackController";
 import type { VidzProject } from "@/lib/project/types";
 import { buildTimeMap, type TimeMap } from "@/lib/timeline/timeMap";
-import { APP_VERSION } from "@/lib/version";
-import { writeVidz } from "@/lib/vidz/vidzFile";
 import { EditorContext, useEditor, useEditorContext, type EditorContextValue } from "./EditorContext";
 import { ExportDialog } from "./ExportDialog";
 import { PreviewCanvas } from "./PreviewCanvas";
 import { AiPanel } from "./AiPanel";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { Menu, MenuItem, MenuSeparator } from "./Menu";
 import { AudioPanel } from "./AudioPanel";
 import { CaptionsTool } from "./CaptionsTool";
 import { EffectsPanel } from "./EffectsPanel";
@@ -63,7 +70,17 @@ export interface Session {
   assets: Record<string, Blob>;
 }
 
-export function Workspace({ session, onClose }: { session: Session; onClose: () => void }) {
+export function Workspace({
+  session,
+  onClose,
+  onRename,
+  onDeleted,
+}: {
+  session: Session;
+  onClose: () => void;
+  onRename: (name: string) => void | Promise<void>;
+  onDeleted: () => void | Promise<void>;
+}) {
   // One store per opened file (the parent re-mounts us with a new `key`).
   const [store] = useState(() => new EditorStore(session.project));
   const [assets] = useState(() => new AssetStore(session.assets));
@@ -105,7 +122,7 @@ export function Workspace({ session, onClose }: { session: Session; onClose: () 
       <video ref={setVideo} src={session.url} preload="auto" playsInline className="hidden" />
       {value && (
         <EditorContext value={value}>
-          <TopBar session={session} onClose={onClose} />
+          <TopBar session={session} onClose={onClose} onRename={onRename} onDeleted={onDeleted} />
           <EditorLayout value={value} session={session} />
         </EditorContext>
       )}
@@ -113,11 +130,22 @@ export function Workspace({ session, onClose }: { session: Session; onClose: () 
   );
 }
 
-function TopBar({ session, onClose }: { session: Session; onClose: () => void }) {
+function TopBar({
+  session,
+  onClose,
+  onRename,
+  onDeleted,
+}: {
+  session: Session;
+  onClose: () => void;
+  onRename: (name: string) => void | Promise<void>;
+  onDeleted: () => void | Promise<void>;
+}) {
   const { store, assets } = useEditorContext();
   const autosave = useAutosave(store, assets, session.storedId);
   const [status, setStatus] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+  const [dialog, setDialog] = useState<"rename" | "discard" | "delete" | null>(null);
   const clickCount = useMemo(
     () => session.events?.events.filter((e) => e.type === "click").length ?? 0,
     [session.events],
@@ -135,26 +163,22 @@ function TopBar({ session, onClose }: { session: Session; onClose: () => void })
     setStatus(n === 0 ? "No clicks to zoom on" : `Added ${n} automatic zoom${n === 1 ? "" : "s"} · Undo to remove`);
   }, [session.autoZoomOnOpen, session.events, store]);
 
-  const save = async () => {
+  // "Save in this browser": the project is autosaved all the time; this
+  // writes any pending change right now and says so.
+  const saveInBrowser = async () => {
+    if (!session.storedId) {
+      setStatus("Couldn't save in this browser (storage unavailable). Use Download instead.");
+      return;
+    }
     setStatus("Saving…");
-    const isMp4 = session.video.type.includes("mp4") || session.video.name.toLowerCase().endsWith(".mp4");
-    const blob = await writeVidz({
-      project: store.getState().project,
-      video: session.video,
-      videoName: isMp4 ? "video.mp4" : "video.webm",
-      events: session.events,
-      appVersion: APP_VERSION,
-      assets: assets.referencedBy(assetPaths(store.getState().project)),
-    });
-    // Download via a temporary <a download>: no permissions, no server.
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${session.name.replace(/\.[^.]+$/, "")}.vidz`;
-    a.click();
-    // Give the browser a moment to start the download before freeing it.
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    setStatus("Saved");
+    try {
+      const project = store.getState().project;
+      await saveProjectEdits(session.storedId, project);
+      await saveProjectAssets(session.storedId, assets.referencedBy(assetPaths(project)));
+      setStatus("Saved in this browser. Find it under Projects.");
+    } catch {
+      setStatus("Couldn't save in this browser. Use Download instead.");
+    }
   };
 
   const autosaveText =
@@ -204,17 +228,126 @@ function TopBar({ session, onClose }: { session: Session; onClose: () => void })
           <Sparkles className="size-4 text-accent" aria-hidden /> Auto zoom
         </button>
       )}
-      <button type="button" className={button} onClick={() => void save()} title="Download a .vidz project file">
-        <Download className="size-4" aria-hidden /> <span className="hidden lg:inline">Save project</span>
-        <span className="sr-only lg:hidden">Save project</span>
-      </button>
-      <button type="button" className={button} onClick={onClose} title="Close this project and open another file">
-        <FolderOpen className="size-4" aria-hidden /> <span className="hidden lg:inline">Open another</span>
-        <span className="sr-only lg:hidden">Open another</span>
-      </button>
+      <Menu
+        label="Save"
+        triggerClassName={button}
+        trigger={
+          <>
+            <Save className="size-4" aria-hidden /> <span className="hidden lg:inline">Save</span>
+          </>
+        }
+      >
+        {(close) => (
+          <>
+            <MenuItem
+              icon={<HardDrive className="size-4" />}
+              title="Save in this browser"
+              description="Keep the project (with all your edits) in your Projects list."
+              onClick={() => {
+                close();
+                void saveInBrowser();
+              }}
+            />
+            <MenuItem
+              icon={<Download className="size-4" />}
+              title="Download video…"
+              description="Choose MP4, MOV or WebM and the quality."
+              onClick={() => {
+                close();
+                setExporting(true);
+              }}
+            />
+          </>
+        )}
+      </Menu>
+      <Menu
+        label="Project menu"
+        triggerClassName={`${button} px-2`}
+        trigger={<MoreHorizontal className="size-4" aria-hidden />}
+      >
+        {(close) => (
+          <>
+            <MenuItem
+              icon={<Pencil className="size-4" />}
+              title="Rename project"
+              onClick={() => {
+                close();
+                setDialog("rename");
+              }}
+            />
+            <MenuItem
+              icon={<FolderOpen className="size-4" />}
+              title="All projects"
+              description="Close this project; it stays saved in your browser."
+              onClick={() => {
+                close();
+                onClose();
+              }}
+            />
+            <MenuSeparator />
+            <MenuItem
+              icon={<RotateCcw className="size-4" />}
+              title="Discard all edits…"
+              description="Back to the original recording. You can undo this."
+              onClick={() => {
+                close();
+                setDialog("discard");
+              }}
+            />
+            <MenuItem
+              icon={<Trash2 className="size-4" />}
+              danger
+              title="Delete project…"
+              description="Removes it from this browser."
+              onClick={() => {
+                close();
+                setDialog("delete");
+              }}
+            />
+          </>
+        )}
+      </Menu>
       <button type="button" className={primaryButton} onClick={() => setExporting(true)} aria-label="Export video">
         <Film className="size-4" aria-hidden /> Export
       </button>
+      {dialog === "rename" && (
+        <ConfirmDialog
+          title="Rename project"
+          confirmLabel="Rename"
+          input={{ label: "Project name", initial: session.name.replace(/\.[^.]+$/, "") }}
+          onCancel={() => setDialog(null)}
+          onConfirm={async (name) => {
+            await onRename(name);
+            setDialog(null);
+          }}
+        />
+      )}
+      {dialog === "discard" && (
+        <ConfirmDialog
+          title="Discard all edits?"
+          description="Cuts, zooms, text, shapes, effects, captions and music are removed and the look goes back to the default. Your recording stays. You can undo this right after."
+          confirmLabel="Discard edits"
+          danger
+          onCancel={() => setDialog(null)}
+          onConfirm={() => {
+            discardEdits(store);
+            setDialog(null);
+            setStatus("Edits discarded · Undo brings them back");
+          }}
+        />
+      )}
+      {dialog === "delete" && (
+        <ConfirmDialog
+          title="Delete this project?"
+          description="It's removed from this browser, including the recording and all edits. This can't be undone."
+          confirmLabel="Delete project"
+          danger
+          onCancel={() => setDialog(null)}
+          onConfirm={async () => {
+            await onDeleted();
+          }}
+        />
+      )}
       {exporting && (
         <ExportDialog
           video={session.video}

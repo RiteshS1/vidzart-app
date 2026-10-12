@@ -113,6 +113,11 @@ export async function saveProjectAssets(id: string, assets: Record<string, Blob>
   await updateRecord(id, (record) => ({ ...record, assets }));
 }
 
+/** Renames a project (not an edit of the video, so "last edited" stays). */
+export async function renameStoredProject(id: string, name: string): Promise<void> {
+  await updateRecord(id, (record) => ({ ...record, name }), false);
+}
+
 /** Stores the dashboard thumbnail. Not an edit, so "last edited" stays as it was. */
 export async function saveThumbnail(id: string, thumbnail: Blob): Promise<void> {
   await updateRecord(id, (record) => ({ ...record, thumbnail }), false);
