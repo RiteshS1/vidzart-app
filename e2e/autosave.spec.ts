@@ -29,7 +29,8 @@ test("edits are saved in the browser and the project can be reopened after a rel
   await expect(page.getByTestId("file-name")).toHaveText("my-demo.webm");
   await expect(page.getByTestId("autosave")).toHaveText("Saved in this browser");
 
-  await page.keyboard.press("z"); // add a zoom
+  await page.keyboard.press("z"); // add a zoom (selects it: the panel shows its settings)
+  await page.keyboard.press("Escape"); // back to the Style tools
   await page.getByRole("button", { name: "Background: Ocean" }).click();
   // Saves are debounced (800 ms after the last edit); give it time to land.
   await page.waitForTimeout(1500);

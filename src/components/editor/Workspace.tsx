@@ -2,6 +2,7 @@
 
 import {
   Captions as CaptionsIcon,
+  ChevronLeft,
   Clapperboard,
   Download,
   Film,
@@ -238,7 +239,6 @@ function EditorLayout({ value, session }: { value: EditorContextValue; session: 
     // Respect the OS "reduce motion" setting for every Motion animation below.
     <MotionConfig reducedMotion="user">
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <Tools session={session} />
         <main className="flex min-h-[260px] min-w-0 flex-1 flex-col bg-bg">
           <div className="flex min-h-0 flex-1 p-4 lg:p-6">
             <PreviewCanvas />
@@ -247,7 +247,7 @@ function EditorLayout({ value, session }: { value: EditorContextValue; session: 
             <Transport />
           </div>
         </main>
-        <Inspector />
+        <SidePanel session={session} />
       </div>
       <div className="shrink-0 border-t border-line bg-surface px-3 pt-2 pb-3">
         <Timeline source={session.video} />
@@ -257,13 +257,19 @@ function EditorLayout({ value, session }: { value: EditorContextValue; session: 
 }
 
 /**
- * Left side: a rail of tools (icon + label) and the panel of the chosen one.
- * Every panel stays mounted (just hidden), so a running AI task or a
- * half-typed caption survives switching tools.
+ * Everything to edit lives on the right: the panel, then the tool rail at
+ * the window's edge. When something is selected on the timeline (a zoom,
+ * text, shape…), the panel shows its settings instead of the tool; closing
+ * it (or picking a tool) goes back.
+ *
+ * Every tool panel stays mounted (just hidden), so a running AI task or a
+ * half-typed caption survives switching tools or selecting things.
  */
-function Tools({ session }: { session: Session }) {
-  const { cursorAt } = useEditorContext();
+function SidePanel({ session }: { session: Session }) {
+  const { store, cursorAt } = useEditorContext();
   const [tool, setTool] = useState<ToolId>("style");
+  const selected = useEditor((s) => s.project.segments.find((x) => x.id === s.selectedSegmentId) ?? null);
+  const inspecting = selected !== null && selected.type !== "trim";
   const tools: { id: ToolId; label: string; icon: typeof Palette; available: boolean }[] = [
     { id: "style", label: "Style", icon: Palette, available: true },
     { id: "text", label: "Text", icon: Type, available: true },
@@ -275,66 +281,98 @@ function Tools({ session }: { session: Session }) {
     { id: "captions", label: "Captions", icon: CaptionsIcon, available: true },
     { id: "ai", label: "AI", icon: Sparkles, available: true },
   ];
+
   return (
-    <>
+    <div className="flex min-h-0 shrink-0 flex-col-reverse border-line lg:flex-row lg:border-l">
+      <section
+        aria-label="Tool settings"
+        className="relative max-h-[40vh] min-h-0 overflow-y-auto bg-surface lg:max-h-none lg:w-80"
+      >
+        <AnimatePresence initial={false}>
+          {inspecting && (
+            <motion.aside
+              key="inspector"
+              aria-label="Inspector"
+              initial={{ opacity: 0, x: 16 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 16, transition: { duration: 0.1 } }}
+              transition={{ type: "spring", stiffness: 500, damping: 40 }}
+              className="absolute inset-0 z-10 overflow-y-auto bg-surface p-4"
+            >
+              <button
+                type="button"
+                className="mb-3 flex cursor-pointer items-center gap-1 text-xs text-ink-muted hover:text-ink"
+                onClick={() => store.setUi({ selectedSegmentId: null })}
+              >
+                <ChevronLeft className="size-3.5" aria-hidden /> Back to {tools.find((t) => t.id === tool)?.label}
+              </button>
+              <SelectedSegmentInspector />
+            </motion.aside>
+          )}
+        </AnimatePresence>
+        <div className="p-4" aria-hidden={inspecting || undefined}>
+          <ToolPanel id="style" active={tool}>
+            <SettingsPanel />
+          </ToolPanel>
+          <ToolPanel id="text" active={tool}>
+            <TextPanel />
+          </ToolPanel>
+          <ToolPanel id="shapes" active={tool}>
+            <ShapePanel />
+          </ToolPanel>
+          <ToolPanel id="effects" active={tool}>
+            <EffectsPanel />
+          </ToolPanel>
+          <ToolPanel id="audio" active={tool}>
+            <AudioPanel />
+          </ToolPanel>
+          {cursorAt && (
+            <ToolPanel id="cursor" active={tool}>
+              <CursorPanel />
+            </ToolPanel>
+          )}
+          <ToolPanel id="captions" active={tool}>
+            <CaptionsTool video={session.video} name={session.name} />
+          </ToolPanel>
+          <ToolPanel id="ai" active={tool}>
+            <AiPanel video={session.video} />
+          </ToolPanel>
+        </div>
+      </section>
       <nav
         role="tablist"
         aria-label="Tools"
         aria-orientation="vertical"
-        className="flex shrink-0 gap-1 overflow-x-auto border-line bg-surface p-2 lg:w-[72px] lg:flex-col lg:border-r"
+        className="flex shrink-0 gap-1 overflow-x-auto border-line bg-surface p-2 lg:w-[72px] lg:flex-col lg:border-l"
       >
         {tools
           .filter((t) => t.available)
-          .map(({ id, label, icon: Icon }) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              id={`tool-${id}`}
-              aria-selected={tool === id}
-              aria-controls={`panel-${id}`}
-              onClick={() => setTool(id)}
-              className={`flex min-w-14 cursor-pointer flex-col items-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium transition-colors duration-150 ${
-                tool === id ? "bg-surface-3 text-ink" : "text-ink-muted hover:bg-surface-2 hover:text-ink"
-              }`}
-            >
-              <Icon className={`size-5 ${tool === id ? "text-accent" : ""}`} aria-hidden />
-              {label}
-            </button>
-          ))}
+          .map(({ id, label, icon: Icon }) => {
+            const active = tool === id && !inspecting;
+            return (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                id={`tool-${id}`}
+                aria-selected={tool === id}
+                aria-controls={`panel-${id}`}
+                onClick={() => {
+                  setTool(id);
+                  // Picking a tool leaves the selected item's settings.
+                  if (inspecting) store.setUi({ selectedSegmentId: null });
+                }}
+                className={`flex min-w-14 cursor-pointer flex-col items-center gap-1 rounded-lg px-1 py-2 text-[11px] font-medium transition-colors duration-150 ${
+                  active ? "bg-surface-3 text-ink" : "text-ink-muted hover:bg-surface-2 hover:text-ink"
+                }`}
+              >
+                <Icon className={`size-5 ${active ? "text-accent" : ""}`} aria-hidden />
+                {label}
+              </button>
+            );
+          })}
       </nav>
-      <section
-        aria-label="Tool settings"
-        className="max-h-[40vh] shrink-0 overflow-y-auto border-line bg-surface p-4 lg:max-h-none lg:w-80 lg:border-r"
-      >
-        <ToolPanel id="style" active={tool}>
-          <SettingsPanel />
-        </ToolPanel>
-        <ToolPanel id="text" active={tool}>
-          <TextPanel />
-        </ToolPanel>
-        <ToolPanel id="shapes" active={tool}>
-          <ShapePanel />
-        </ToolPanel>
-        <ToolPanel id="effects" active={tool}>
-          <EffectsPanel />
-        </ToolPanel>
-        <ToolPanel id="audio" active={tool}>
-          <AudioPanel />
-        </ToolPanel>
-        {cursorAt && (
-          <ToolPanel id="cursor" active={tool}>
-            <CursorPanel />
-          </ToolPanel>
-        )}
-        <ToolPanel id="captions" active={tool}>
-          <CaptionsTool video={session.video} name={session.name} />
-        </ToolPanel>
-        <ToolPanel id="ai" active={tool}>
-          <AiPanel video={session.video} />
-        </ToolPanel>
-      </section>
-    </>
+    </div>
   );
 }
 
@@ -343,32 +381,5 @@ function ToolPanel({ id, active, children }: { id: ToolId; active: ToolId; child
     <div role="tabpanel" id={`panel-${id}`} aria-labelledby={`tool-${id}`} hidden={id !== active}>
       {children}
     </div>
-  );
-}
-
-/**
- * Right side: properties of whatever is selected on the timeline (a zoom,
- * speed-up or blur). Slides in on selection, out when nothing is selected,
- * so the preview gets the space otherwise.
- */
-function Inspector() {
-  const selected = useEditor((s) => s.project.segments.find((x) => x.id === s.selectedSegmentId) ?? null);
-  const visible = selected !== null && selected.type !== "trim";
-  return (
-    <AnimatePresence initial={false}>
-      {visible && (
-        <motion.aside
-          key="inspector"
-          aria-label="Inspector"
-          initial={{ opacity: 0, x: 24 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: 24, transition: { duration: 0.12 } }}
-          transition={{ type: "spring", stiffness: 420, damping: 36 }}
-          className="shrink-0 overflow-y-auto border-line bg-surface p-4 lg:w-80 lg:border-l"
-        >
-          <SelectedSegmentInspector />
-        </motion.aside>
-      )}
-    </AnimatePresence>
   );
 }
