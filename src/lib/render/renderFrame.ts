@@ -1,5 +1,5 @@
 // Draws one composed output frame: background → shadow → rounded video →
-// blur boxes → cursor and click effects → captions.
+// blur boxes → cursor and click effects → text overlays → captions.
 //
 // This is THE render function. The preview calls it on every animation frame
 // with a <video> element as the source; the export worker (Phase 3) will call
@@ -16,6 +16,7 @@ import { drawBlurs } from "./blur";
 import { drawCaption } from "./captions";
 import { drawCursorLayer } from "./cursor";
 import { layoutFrame, type Size } from "./layout";
+import { drawTexts } from "./text";
 
 export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
@@ -101,6 +102,9 @@ export function renderFrame(
     ctx.fillRect(video.x, video.y, video.width, video.height);
   }
   ctx.restore();
+
+  // Text overlays: output-space, so outside the video clip and the camera.
+  drawTexts(ctx, canvas, project.segments, timing.sourceTime);
 
   // Captions sit on top of everything and don't zoom with the camera.
   if (project.captions) drawCaption(ctx, project.captions, timing.sourceTime, video, unit);

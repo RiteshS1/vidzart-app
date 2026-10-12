@@ -57,7 +57,35 @@ export interface BlurSegment {
   rect: { x: number; y: number; width: number; height: number };
 }
 
-export type Segment = ZoomSegment | TrimSegment | SpeedSegment | BlurSegment;
+export type TextAnimation = "none" | "fade" | "slide-up" | "pop" | "typewriter";
+
+export interface TextStyle {
+  /** Generic family; each renderer maps it to a font it has (see render/text.ts). */
+  font: "sans" | "serif" | "mono" | "rounded";
+  /** Text height as a fraction of the output canvas's shorter side. */
+  size: number;
+  weight: 400 | 600 | 800;
+  color: string;
+  /** Color of a rounded box behind the text; none if absent. */
+  background?: string;
+  align: "left" | "center" | "right";
+}
+
+/** A text overlay, positioned in OUTPUT canvas space (it doesn't move with zooms). */
+export interface TextSegment {
+  id: string;
+  type: "text";
+  start: number;
+  end: number;
+  text: string;
+  /** Center of the text block, normalized 0–1 of the output canvas. */
+  x: number;
+  y: number;
+  style: TextStyle;
+  animation: { in: TextAnimation; out: TextAnimation };
+}
+
+export type Segment = ZoomSegment | TrimSegment | SpeedSegment | BlurSegment | TextSegment;
 
 export interface CaptionWord {
   start: number;

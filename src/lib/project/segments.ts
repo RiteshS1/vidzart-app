@@ -1,7 +1,7 @@
 // Pure helpers that return a NEW segments array (never mutate): the editor
 // store keeps old arrays around for undo, so mutation would corrupt history.
 
-import type { BlurSegment, Segment, SpeedSegment, TrimSegment, ZoomSegment } from "./types";
+import type { BlurSegment, Segment, SpeedSegment, TextSegment, TrimSegment, ZoomSegment } from "./types";
 
 /** Cuts shorter than this are almost certainly a mis-drag. */
 export const MIN_TRIM_MS = 50;
@@ -164,4 +164,80 @@ export function addBlur(
   const e = Math.min(duration, Math.max(start, end));
   if (e - s < MIN_RANGE_MS) return [...segments];
   return [...segments, { id: newSegmentId(), type: "blur", start: s, end: e, rect: { ...rect } }];
+}
+
+// --- text -------------------------------------------------------------------
+
+/** Ready-made text styles, offered as one-click presets in the Text tool. */
+export const TEXT_PRESETS: { name: string; segment: Omit<TextSegment, "id" | "type" | "start" | "end"> }[] = [
+  {
+    name: "Title",
+    segment: {
+      text: "Your title",
+      x: 0.5,
+      y: 0.5,
+      style: { font: "sans", size: 0.1, weight: 800, color: "#ffffff", align: "center" },
+      animation: { in: "pop", out: "fade" },
+    },
+  },
+  {
+    name: "Subtitle",
+    segment: {
+      text: "A short subtitle",
+      x: 0.5,
+      y: 0.62,
+      style: { font: "sans", size: 0.05, weight: 600, color: "#ffffff", align: "center" },
+      animation: { in: "slide-up", out: "fade" },
+    },
+  },
+  {
+    name: "Callout",
+    segment: {
+      text: "Click here",
+      x: 0.5,
+      y: 0.2,
+      style: { font: "rounded", size: 0.045, weight: 600, color: "#111118", background: "#ffffff", align: "center" },
+      animation: { in: "pop", out: "fade" },
+    },
+  },
+  {
+    name: "Lower third",
+    segment: {
+      text: "Your name\nYour role",
+      x: 0.24,
+      y: 0.84,
+      style: { font: "sans", size: 0.04, weight: 600, color: "#ffffff", background: "#6d5dfc", align: "left" },
+      animation: { in: "slide-up", out: "fade" },
+    },
+  },
+  {
+    name: "Typewriter",
+    segment: {
+      text: "Let's build something",
+      x: 0.5,
+      y: 0.5,
+      style: { font: "mono", size: 0.06, weight: 400, color: "#ffffff", align: "center" },
+      animation: { in: "typewriter", out: "fade" },
+    },
+  },
+];
+
+export const DEFAULT_TEXT_MS = 3_000;
+
+export function textsOf(segments: readonly Segment[]): TextSegment[] {
+  return segments.filter((s): s is TextSegment => s.type === "text").sort((a, b) => a.start - b.start);
+}
+
+/** Adds a text overlay over [start, end). Texts may overlap each other. */
+export function addText(
+  segments: readonly Segment[],
+  start: number,
+  end: number,
+  duration: number,
+  preset = TEXT_PRESETS[0]!.segment,
+): Segment[] {
+  const s = Math.max(0, Math.min(start, end));
+  const e = Math.min(duration, Math.max(start, end));
+  if (e - s < MIN_RANGE_MS) return [...segments];
+  return [...segments, { id: newSegmentId(), type: "text", start: s, end: e, ...structuredClone(preset) }];
 }
