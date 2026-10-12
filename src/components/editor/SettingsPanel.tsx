@@ -3,7 +3,7 @@
 import type { AspectRatio, ProjectSettings } from "@/lib/project/types";
 import { BACKGROUND_PRESETS, backgroundToCss } from "@/lib/render/backgrounds";
 import { useEditor, useEditorContext } from "./EditorContext";
-import { panelLabel } from "./styles";
+import { panelLabel, segment } from "./styles";
 
 const ASPECTS: { value: AspectRatio; label: string }[] = [
   { value: "16:9", label: "16:9" },
@@ -184,6 +184,36 @@ function CursorSettings({
             </label>
           </>
         )}
+      </fieldset>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className={panelLabel}>Keyboard shortcuts</legend>
+        <label className="mt-2 flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={settings.keystrokes?.visible ?? false}
+            onChange={(e) =>
+              update({ keystrokes: { position: settings.keystrokes?.position ?? "bottom", visible: e.target.checked } })
+            }
+          />
+          Show shortcuts you pressed (⌘K…)
+        </label>
+        {settings.keystrokes?.visible && (
+          <div className="grid grid-cols-2 gap-1" role="group" aria-label="Shortcut badge position">
+            {(["top", "bottom"] as const).map((position) => (
+              <button
+                key={position}
+                type="button"
+                aria-pressed={settings.keystrokes?.position === position}
+                onClick={() => update({ keystrokes: { visible: true, position } })}
+                className={`${segment(settings.keystrokes?.position === position)} capitalize`}
+              >
+                {position}
+              </button>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-ink-muted">Only shortcuts with ⌘, Ctrl or Alt are ever recorded, never typed text.</p>
       </fieldset>
 
       <fieldset className="flex flex-col gap-2">

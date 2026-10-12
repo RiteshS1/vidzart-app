@@ -5,9 +5,11 @@ import { editSegments } from "@/lib/editor/actions";
 import {
   addBlur,
   addSpeed,
+  addShape,
   addText,
   addZoom,
   blursOf,
+  shapesOf,
   textsOf,
   freeGap,
   MIN_RANGE_MS,
@@ -16,7 +18,7 @@ import {
   updateSegment,
   zoomsOf,
 } from "@/lib/project/segments";
-import type { BlurSegment, Segment, SpeedSegment, TextSegment, ZoomSegment } from "@/lib/project/types";
+import type { BlurSegment, Segment, ShapeSegment, SpeedSegment, TextSegment, ZoomSegment } from "@/lib/project/types";
 import { useEditor, useEditorContext } from "./EditorContext";
 
 // One lane of the timeline for one kind of range segment (zoom, speed,
@@ -29,7 +31,7 @@ import { useEditor, useEditorContext } from "./EditorContext";
 // their moves/resizes are clamped to the free gap between neighbors. Blurs
 // may overlap (hiding two things at once), so they move freely.
 
-type RangeSegment = ZoomSegment | SpeedSegment | BlurSegment | TextSegment;
+type RangeSegment = ZoomSegment | SpeedSegment | BlurSegment | TextSegment | ShapeSegment;
 export type LaneKind = RangeSegment["type"];
 
 interface LaneConfig {
@@ -82,6 +84,17 @@ const LANES: Record<LaneKind, LaneConfig> = {
     describe: (s) => `Blur from ${secs(s.start)} to ${secs(s.end)}`,
     colors: ["bg-slate-600/70 hover:bg-slate-600", "bg-slate-600 ring-2 ring-slate-300"],
     seekTo: (s) => (s.start + s.end) / 2,
+  },
+  shape: {
+    minMs: MIN_RANGE_MS,
+    overlap: true,
+    of: shapesOf,
+    add: (s, a, b, d) => addShape(s, a, b, d),
+    hint: "Drag here to add a shape",
+    label: (s) => (s.type === "shape" ? { arrow: "Arrow", rect: "Box", ellipse: "Circle", spotlight: "Spotlight" }[s.kind] : ""),
+    describe: (s) => (s.type === "shape" ? `Shape ${s.kind} from ${secs(s.start)} to ${secs(s.end)}` : ""),
+    colors: ["bg-cyan-700/80 hover:bg-cyan-700", "bg-cyan-700 ring-2 ring-cyan-300"],
+    seekTo: (s) => Math.min(s.start + 500, (s.start + s.end) / 2),
   },
   text: {
     minMs: MIN_RANGE_MS,

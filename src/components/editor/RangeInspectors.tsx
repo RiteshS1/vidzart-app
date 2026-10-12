@@ -6,6 +6,7 @@ import { removeSegment, SPEED_RATES, updateSegment } from "@/lib/project/segment
 import type { BlurSegment, SpeedSegment } from "@/lib/project/types";
 import { useEditor, useEditorContext } from "./EditorContext";
 import { button, panelLabel } from "./styles";
+import { ShapeInspector } from "./ShapeTools";
 import { TextInspector } from "./TextTools";
 import { ZoomInspector } from "./ZoomInspector";
 
@@ -88,13 +89,32 @@ export function BlurInspector({ blur }: { blur: BlurSegment }) {
 
 type Rect = BlurSegment["rect"];
 
-/** A live thumbnail of the current frame; drag to draw a rectangle on it. */
-function RectPicker({ rect, onChange }: { rect: Rect; onChange: (rect: Rect, done: boolean) => void }) {
+/**
+ * A live thumbnail of the current frame; drag to draw on it. In "box" mode
+ * the drag spans a rectangle; in "arrow" mode it goes from the tail (where
+ * you press) to the tip (where you let go), so width/height keep their sign.
+ */
+export function RectPicker({
+  rect,
+  onChange,
+  mode = "box",
+  testId = "blur-rect-picker",
+  label = "Drag to draw the area to blur",
+}: {
+  rect: Rect;
+  onChange: (rect: Rect, done: boolean) => void;
+  mode?: "box" | "arrow";
+  testId?: string;
+  label?: string;
+}) {
+  const modeRef = useRef(mode);
   const { video } = useEditorContext();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const latest = useRef(rect);
+  // The drawing loop reads the latest props without restarting.
   useEffect(() => {
     latest.current = rect;
+    modeRef.current = mode;
   });
   const [anchor, setAnchor] = useState<{ x: number; y: number } | null>(null);
 
@@ -108,13 +128,28 @@ function RectPicker({ rect, onChange }: { rect: Rect; onChange: (rect: Rect, don
       if (video.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA) ctx.drawImage(video, 0, 0, width, height);
       else ctx.clearRect(0, 0, width, height);
       const r = latest.current;
-      ctx.fillStyle = "rgba(100, 116, 139, 0.55)";
-      ctx.fillRect(r.x * width, r.y * height, r.width * width, r.height * height);
-      ctx.strokeStyle = "#fff";
-      ctx.lineWidth = 2;
-      ctx.setLineDash([4, 3]);
-      ctx.strokeRect(r.x * width, r.y * height, r.width * width, r.height * height);
-      ctx.setLineDash([]);
+      if (modeRef.current === "arrow") {
+        const [ax, ay, bx, by] = [r.x * width, r.y * height, (r.x + r.width) * width, (r.y + r.height) * height];
+        const angle = Math.atan2(by - ay, bx - ax);
+        ctx.strokeStyle = "#facc15";
+        ctx.lineWidth = 3;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(ax, ay);
+        ctx.lineTo(bx, by);
+        ctx.lineTo(bx - 10 * Math.cos(angle - 0.5), by - 10 * Math.sin(angle - 0.5));
+        ctx.moveTo(bx, by);
+        ctx.lineTo(bx - 10 * Math.cos(angle + 0.5), by - 10 * Math.sin(angle + 0.5));
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = "rgba(100, 116, 139, 0.55)";
+        ctx.fillRect(r.x * width, r.y * height, r.width * width, r.height * height);
+        ctx.strokeStyle = "#fff";
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 3]);
+        ctx.strokeRect(r.x * width, r.y * height, r.width * width, r.height * height);
+        ctx.setLineDash([]);
+      }
       frame = requestAnimationFrame(draw);
     };
     frame = requestAnimationFrame(draw);
@@ -128,22 +163,22 @@ function RectPicker({ rect, onChange }: { rect: Rect; onChange: (rect: Rect, don
       y: Math.min(1, Math.max(0, (event.clientY - box.top) / box.height)),
     };
   };
-  const rectFrom = (a: { x: number; y: number }, b: { x: number; y: number }): Rect => ({
-    x: Math.min(a.x, b.x),
-    y: Math.min(a.y, b.y),
-    width: Math.abs(a.x - b.x),
-    height: Math.abs(a.y - b.y),
-  });
+  const rectFrom = (a: { x: number; y: number }, b: { x: number; y: number }): Rect =>
+    mode === "arrow"
+      ? { x: a.x, y: a.y, width: b.x - a.x, height: b.y - a.y }
+      : { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), width: Math.abs(a.x - b.x), height: Math.abs(a.y - b.y) };
+  // Big enough to be intentional (not a click).
+  const real = (r: Rect) => (mode === "arrow" ? Math.hypot(r.width, r.height) > 0.02 : r.width > 0.01 && r.height > 0.01);
 
   const aspect = video.videoWidth && video.videoHeight ? video.videoWidth / video.videoHeight : 16 / 9;
   return (
     <canvas
       ref={canvasRef}
-      data-testid="blur-rect-picker"
+      data-testid={testId}
       width={256}
       height={Math.round(256 / aspect)}
       className="w-full cursor-crosshair touch-none rounded-md"
-      aria-label="Drag to draw the area to blur"
+      aria-label={label}
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId);
         setAnchor(point(event));
@@ -151,14 +186,14 @@ function RectPicker({ rect, onChange }: { rect: Rect; onChange: (rect: Rect, don
       onPointerMove={(event) => {
         if (!anchor) return;
         const r = rectFrom(anchor, point(event));
-        if (r.width > 0.01 && r.height > 0.01) onChange(r, false);
+        if (real(r)) onChange(r, false);
       }}
       onPointerUp={(event) => {
         if (!anchor) return;
         const r = rectFrom(anchor, point(event));
         setAnchor(null);
         // A plain click (no real box) keeps the current rectangle.
-        if (r.width > 0.01 && r.height > 0.01) onChange(r, true);
+        if (real(r)) onChange(r, true);
       }}
     />
   );
@@ -176,6 +211,12 @@ export function SelectedSegmentInspector() {
       return <SpeedInspector key={selected.id} speed={selected} />;
     case "blur":
       return <BlurInspector key={selected.id} blur={selected} />;
+    case "shape":
+      return (
+        <InspectorShell key={selected.id} title="Shape" id={selected.id} tone="border-cyan-500/40 bg-cyan-500/[.05]">
+          <ShapeInspector shape={selected} />
+        </InspectorShell>
+      );
     case "text":
       return (
         <InspectorShell key={selected.id} title="Text" id={selected.id} tone="border-amber-500/40 bg-amber-500/[.05]">

@@ -83,3 +83,49 @@ test("adds a text from a preset, draws it, drags it and edits it", async ({ page
   await page.getByRole("button", { name: "Go to end" }).click();
   await expect.poll(() => whiteAround(page, 0.5, 0.45)).toBe(0);
 });
+
+/** Average brightness (0–255) in a box around (fx, fy) of the preview canvas. */
+async function brightness(page: Page, fx: number, fy: number, size = 30) {
+  return page.getByTestId("preview-canvas").evaluate(
+    (el, [x, y, s]) => {
+      const c = el as HTMLCanvasElement;
+      const data = c.getContext("2d")!.getImageData(Math.floor(c.width * x! - s! / 2), Math.floor(c.height * y! - s! / 2), s!, s!).data;
+      let sum = 0;
+      for (let i = 0; i < data.length; i += 4) sum += (data[i]! + data[i + 1]! + data[i + 2]!) / 3;
+      return sum / (data.length / 4);
+    },
+    [fx, fy, size],
+  );
+}
+
+test("a spotlight dims everything but its area; a box outline draws itself", async ({ page }) => {
+  await page.goto("/editor");
+  await page.getByLabel("Choose a video file").setInputFiles({ name: "clip.webm", mimeType: "video/webm", buffer: video });
+  await expect(page.getByTestId("file-name")).toHaveText("clip.webm");
+  // Inside the video, away from the default spotlight hole (center).
+  const corner: [number, number] = [0.15, 0.2];
+  let before = 0;
+  await expect.poll(async () => (before = await brightness(page, ...corner))).toBeGreaterThan(20);
+  let center = 0;
+  await expect.poll(async () => (center = await brightness(page, 0.5, 0.5))).toBeGreaterThan(20);
+
+  await page.getByRole("tab", { name: "Shapes" }).click();
+  await page.getByRole("button", { name: "Add Spotlight" }).click();
+  await expect(page.getByTestId("shape-block")).toHaveCount(1);
+  await page.keyboard.press("ArrowRight"); // past the fade-in
+  await expect.poll(() => brightness(page, ...corner)).toBeLessThan(before * 0.6);
+  // The hole in the middle stays as bright as before.
+  await expect.poll(async () => Math.abs((await brightness(page, 0.5, 0.5)) - center)).toBeLessThan(3);
+
+  // Turn it into a yellow box: its outline appears around the area.
+  await page.getByRole("group", { name: "Shape" }).getByRole("button", { name: "Box" }).click();
+  await expect.poll(() => brightness(page, ...corner)).toBeGreaterThan(before * 0.9);
+  const yellow = await page.getByTestId("preview-canvas").evaluate((el) => {
+    const c = el as HTMLCanvasElement;
+    const d = c.getContext("2d")!.getImageData(0, 0, c.width, c.height).data;
+    let n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i]! > 200 && d[i + 1]! > 170 && d[i + 2]! < 90) n++;
+    return n;
+  });
+  expect(yellow).toBeGreaterThan(200);
+});

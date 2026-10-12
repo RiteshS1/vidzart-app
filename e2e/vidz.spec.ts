@@ -253,6 +253,25 @@ test("a fresh extension recording opens with cursor-following zooms already adde
   await expect(page.getByTestId("zoom-block")).toHaveCount(0);
 });
 
+test("shows keyboard shortcut badges from the event log when enabled", async ({ page }) => {
+  const withKeys: VidzEvents = {
+    ...events,
+    events: [...events.events, { t: 2_000, type: "key" as const, x: 640, y: 360, combo: "Meta+K" }].sort((a, b) => a.t - b.t),
+  };
+  const vidz = await writeVidz({ project: project(4_000), video: new Blob([new Uint8Array(video)]), videoName: "video.webm", events: withKeys, appVersion: "t" });
+  await openFile(page, "keys.vidz", Buffer.from(await vidz.arrayBuffer()), "application/zip");
+  // Just after the shortcut, at the bottom center of the video.
+  const track = page.getByTestId("timeline-track");
+  const box = (await track.boundingBox())!;
+  await track.click({ position: { x: box.width * (2_400 / 4_000), y: box.height / 2 } });
+  await page.waitForTimeout(300);
+  const spot: [number, number] = [0.5, 0.92 - 0.08];
+  const off = await region(page, ...spot, 60);
+  await page.getByRole("tab", { name: "Cursor" }).click();
+  await page.getByLabel("Show shortcuts you pressed (⌘K…)").check();
+  await expect.poll(async () => (await region(page, ...spot, 60)).dark).toBeGreaterThan(off.dark + 200);
+});
+
 test("plain videos have no auto zoom and no cursor follow", async ({ page }) => {
   await openFile(page, "plain.webm", video, "video/webm");
   await expect(page.getByRole("button", { name: "Auto zoom" })).toHaveCount(0);
