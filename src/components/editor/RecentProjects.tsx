@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { deleteStoredProject, listStoredProjects, type ProjectSummary } from "@/lib/storage/projects";
+import { listStoredProjects, type ProjectSummary } from "@/lib/storage/projects";
 import { formatTime } from "@/lib/time/formatTime";
 import { button } from "./styles";
 
-// The local "dashboard": projects kept in this browser by autosave.
+// The editor start screen's short list of recent projects (the full list,
+// with deleting, is the dashboard at /projects).
 
 export function RecentProjects({ onOpen }: { onOpen: (id: string) => void }) {
   const [projects, setProjects] = useState<ProjectSummary[] | null>(null);
@@ -35,7 +36,8 @@ export function RecentProjects({ onOpen }: { onOpen: (id: string) => void }) {
         {usage && <span className="text-xs opacity-50">{usage}</span>}
       </div>
       <ul className="divide-y divide-black/10 rounded-lg border border-black/10 dark:divide-white/10 dark:border-white/10">
-        {projects.map((p) => (
+        {/* The newest few; the dashboard (/projects) has them all, plus deleting. */}
+        {projects.slice(0, 3).map((p) => (
           <li key={p.id} className="flex items-center gap-3 px-3 py-2">
             <button type="button" className="min-w-0 flex-1 text-left" onClick={() => onOpen(p.id)}>
               <span className="block truncate text-sm font-medium">{p.name}</span>
@@ -45,16 +47,6 @@ export function RecentProjects({ onOpen }: { onOpen: (id: string) => void }) {
             </button>
             <button type="button" className={button} onClick={() => onOpen(p.id)}>
               Open
-            </button>
-            <button
-              type="button"
-              className={`${button} text-red-600`}
-              aria-label={`Delete ${p.name}`}
-              onClick={() =>
-                void deleteStoredProject(p.id).then(() => setProjects((list) => list?.filter((x) => x.id !== p.id) ?? null))
-              }
-            >
-              Delete
             </button>
           </li>
         ))}

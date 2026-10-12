@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Recorder } from "@/components/recorder/Recorder";
+import { SiteHeader } from "@/components/site/SiteHeader";
 
 export const metadata: Metadata = {
   title: "Record · Vidzart",
@@ -12,14 +13,21 @@ export const metadata: Metadata = {
 // at build time is safe.
 export default function RecordPage() {
   return (
-    <main className="flex flex-1 flex-col items-center gap-8 px-6 py-16">
-      <header className="flex w-full max-w-3xl items-baseline justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">Record</h1>
-        <Link href="/" className="text-sm opacity-60 hover:opacity-100">
-          ← Vidzart
-        </Link>
-      </header>
-      <Recorder />
-    </main>
+    <>
+      <SiteHeader current="record" />
+      <main className="flex flex-1 flex-col items-center gap-8 px-6 py-12">
+        <div className="w-full max-w-3xl">
+          <h1 className="text-3xl font-bold tracking-tight">Record your screen</h1>
+          <p className="mt-2 text-sm text-ink-muted">
+            Records a tab, window or your whole screen right here. For automatic zooms on your clicks, record with the{" "}
+            <Link href="/#install" className="text-ink underline underline-offset-4">
+              Chrome extension
+            </Link>{" "}
+            instead.
+          </p>
+        </div>
+        <Recorder />
+      </main>
+    </>
   );
 }

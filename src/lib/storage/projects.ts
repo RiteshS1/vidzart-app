@@ -18,10 +18,15 @@ export interface StoredProject {
   project: VidzProject;
   /** Files the project uses besides the video (e.g. music), by .vidz path. */
   assets?: Record<string, Blob>;
+  /** A small JPEG of the first frame, for the dashboard (made lazily). */
+  thumbnail?: Blob;
 }
 
 /** What the "Recent projects" list needs, without touching the video. */
-export type ProjectSummary = Pick<StoredProject, "id" | "name" | "updatedAt"> & { durationMs: number; sizeBytes: number };
+export type ProjectSummary = Pick<StoredProject, "id" | "name" | "updatedAt" | "thumbnail"> & {
+  durationMs: number;
+  sizeBytes: number;
+};
 
 const DB_NAME = "vidzart";
 const STORE = "projects";
@@ -65,6 +70,7 @@ const summaryOf = (p: StoredProject): ProjectSummary => ({
   updatedAt: p.updatedAt,
   durationMs: p.project.source.duration,
   sizeBytes: p.video.size,
+  thumbnail: p.thumbnail,
 });
 
 export async function createStoredProject(input: Omit<StoredProject, "id" | "createdAt" | "updatedAt">): Promise<string> {
@@ -84,12 +90,13 @@ export async function createStoredProject(input: Omit<StoredProject, "id" | "cre
  * Read-modify-write of one record inside ONE readwrite transaction, so two
  * saves (edits and assets) can't overwrite each other's changes.
  */
-async function updateRecord(id: string, change: (record: StoredProject) => StoredProject): Promise<void> {
+async function updateRecord(id: string, change: (record: StoredProject) => StoredProject, touch = true): Promise<void> {
   await tx([STORE, META], "readwrite", (t) => {
     const request = t.objectStore(STORE).get(id) as IDBRequest<StoredProject | undefined>;
     request.onsuccess = () => {
       if (!request.result) return; // deleted meanwhile
-      const next = { ...change(request.result), updatedAt: Date.now() };
+      const changed = change(request.result);
+      const next = touch ? { ...changed, updatedAt: Date.now() } : changed;
       t.objectStore(STORE).put(next);
       t.objectStore(META).put(summaryOf(next));
     };
@@ -104,6 +111,11 @@ export async function saveProjectEdits(id: string, project: VidzProject): Promis
 /** Saves the project's asset files (music…), replacing the previous set. */
 export async function saveProjectAssets(id: string, assets: Record<string, Blob>): Promise<void> {
   await updateRecord(id, (record) => ({ ...record, assets }));
+}
+
+/** Stores the dashboard thumbnail. Not an edit, so "last edited" stays as it was. */
+export async function saveThumbnail(id: string, thumbnail: Blob): Promise<void> {
+  await updateRecord(id, (record) => ({ ...record, thumbnail }), false);
 }
 
 export async function getStoredProject(id: string): Promise<StoredProject | undefined> {

@@ -1,6 +1,5 @@
 "use client";
 
-import { Coffee } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { listenForExtensionHandoff } from "@/lib/editor/extensionHandoff";
@@ -10,6 +9,7 @@ import { probeWithElement } from "@/lib/media/probeWithElement";
 import { createProject } from "@/lib/project/defaults";
 import { readVidz } from "@/lib/vidz/vidzFile";
 import { createStoredProject, getStoredProject } from "@/lib/storage/projects";
+import { SiteHeader } from "@/components/site/SiteHeader";
 import { DropZone } from "./DropZone";
 import { RecentProjects } from "./RecentProjects";
 import { Workspace, type Session } from "./Workspace";
@@ -135,6 +135,17 @@ export default function Editor() {
     if (pending) void open(pending);
   }, [open]);
 
+  // Opened from the dashboard (/editor?project=<id>): load that stored
+  // project. The id is removed from the URL so a reload shows the start
+  // screen with its recent list rather than silently reopening.
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("project");
+    if (!id) return;
+    window.history.replaceState(null, "", window.location.pathname);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot open from the URL, like the handoff above
+    void openStored(id);
+  }, [openStored]);
+
   // Opened by the extension's "Open in editor"? It posts the recording to us.
   useEffect(() => listenForExtensionHandoff((file) => void open(file)), [open]);
 
@@ -159,18 +170,13 @@ export default function Editor() {
         </>
       ) : (
         <>
-          <header className="flex items-center gap-3 border-b border-black/10 px-4 py-2 dark:border-white/10">
-            <Link href="/" className="font-semibold tracking-tight">
-              Vidzart
-            </Link>
-            <span className="flex-1" />
-            <a href="https://buymeacoffee.com/riteshs" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 text-xs text-ink-muted hover:text-ink">
-              <Coffee className="size-3.5" aria-hidden /> Buy me a coffee
-            </a>
-          </header>
+          <SiteHeader />
           <main className="flex flex-1 flex-col items-center justify-center gap-8 overflow-y-auto p-6">
             <DropZone onFile={open} error={error} busy={busy} />
             <RecentProjects onOpen={(id) => void openStored(id)} />
+            <Link href="/projects" className="text-sm text-ink-muted underline-offset-4 hover:text-ink hover:underline">
+              All projects →
+            </Link>
           </main>
         </>
       )}

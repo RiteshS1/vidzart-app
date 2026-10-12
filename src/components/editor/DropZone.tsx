@@ -1,5 +1,6 @@
 "use client";
 
+import { UploadCloud } from "lucide-react";
 import { useRef, useState, type DragEvent } from "react";
 import { primaryButton } from "./styles";
 
@@ -22,12 +23,15 @@ export function DropZone(props: { onFile: (file: File) => void; error?: string |
       }}
       onDragLeave={() => setOver(false)}
       onDrop={onDrop}
-      className={`flex w-full max-w-2xl flex-col items-center gap-4 rounded-xl border-2 border-dashed px-8 py-16 text-center transition-colors ${
-        over ? "border-indigo-500 bg-indigo-500/10" : "border-black/15 dark:border-white/20"
+      className={`flex w-full max-w-2xl flex-col items-center gap-4 rounded-2xl border-2 border-dashed px-8 py-14 text-center transition-colors duration-150 ${
+        over ? "border-accent bg-accent/10" : "border-line-strong bg-surface/50"
       }`}
     >
-      <p className="text-lg font-medium">Drop a video or .vidz project here</p>
-      <p className="text-sm opacity-60">
+      <span className="flex size-12 items-center justify-center rounded-2xl bg-surface-3" aria-hidden>
+        <UploadCloud className="size-6 text-accent" />
+      </span>
+      <p className="text-lg font-semibold">Drop a video or .vidz project here</p>
+      <p className="text-sm text-ink-muted">
         WebM, MP4 or a Vidzart project. It stays on your device; nothing is uploaded.
       </p>
       <button
@@ -51,7 +55,7 @@ export function DropZone(props: { onFile: (file: File) => void; error?: string |
         }}
       />
       {props.error && (
-        <p role="alert" className="text-sm text-red-500">
+        <p role="alert" className="text-sm text-danger">
           {props.error}
         </p>
       )}
