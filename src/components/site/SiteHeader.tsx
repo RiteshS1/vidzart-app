@@ -42,9 +42,9 @@ export function SiteHeader({ current }: { current?: "projects" | "record" }) {
         >
           <Coffee className="size-4" aria-hidden /> Support
         </a>
-        <Link href="/editor" className="ml-2 rounded-lg bg-ink px-3.5 py-1.5 text-sm font-semibold text-bg hover:bg-white">
+        {/* <Link href="/editor" className="ml-2 rounded-lg bg-ink px-3.5 py-1.5 text-sm font-semibold text-bg hover:bg-white">
           Open editor
-        </Link>
+        </Link> */}
       </div>
     </header>
   );
